@@ -150,5 +150,24 @@
 
 ---
 
-## 다음 단계
-- Phase 3: Execution Agent (BoTorch 기반 Auto DOE, 레시피 승인 워크플로우, LLM 설명 연동)
+## 형상관리 / 문서화 (2026-06-11)
+
+### 작업 내용
+1. **Git 저장소 초기화** — `D:\claude\ai-ades`에 `git init`, `.gitignore` 보강
+   - `services/*/models/*` (학습된 .pkl 모델 산출물) 제외 (`.gitkeep`만 추적)
+   - `.claude/` (내부 파일), `준비/AI-ADES POC data 구성.pptx`(85MB) 제외
+2. **GitHub 원격 저장소 연결 및 최초 푸시**
+   - `https://github.com/twowings-hub/ai-ades` 를 `origin`으로 등록, `main` 브랜치 푸시 (commit `53ee5f8`)
+   - Phase 0~2 전체 소스/스키마/대시보드/문서 31개 파일 포함
+3. **CLAUDE.md 갱신** (commit `5fbf0cb`)
+   - Phase 0/1/2 상태를 ✅ 완료로 변경, Phase 4에 "Admin Console" 범위 추가
+   - `OLLAMA_MODEL`을 실제 설치 모델인 `qwen2.5:7b-instruct`로 동기화 (기술스택 표 + 환경변수 예시 2곳)
+   - 신규 11장 "Phase 4 추가 사양 — Admin Console (예정)" 추가
+     - 작업 1: 관리자 API 엔드포인트 전체 목록 (시스템 상태/LLM 관리/모델 재학습/설정 관리/사용자 관리/알림/감사로그/서비스 관리/데이터 관리)
+     - 작업 2: 신규 DB 테이블(`users`, `notification_settings` 등) — 사용자 입력이 중간에 끊겨 일부 컬럼/`audit_logs` 등 테이블 정의 누락, 착수 시 재확인 필요로 명시
+     - 작업 3: `frontend/src/pages/AdminPage.jsx` 개요
+     - **전제조건 명시**: Phase 3(Execution Agent 기본 구조)이 먼저 완료되어야 착수 가능
+
+### 다음 단계
+- Phase 3: Execution Agent (BoTorch 기반 Auto DOE, 레시피 승인 워크플로우, LLM 설명 연동) — 다음 세션에서 작업지시서 수령 후 착수
+- Phase 4 Admin Console: Phase 3 완료 후 착수, 누락된 DB 테이블 스펙 재확인 필요
