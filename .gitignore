@@ -1,0 +1,30 @@
+# 환경변수
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+
+# 데이터/모델 산출물
+mlruns/
+*.log
+data/raw/*
+!data/raw/.gitkeep
+services/*/models/*
+!services/*/models/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code 내부 파일
+.claude/
+
+# 대용량 참고 자료 (85MB pptx)
+준비/AI-ADES POC data 구성.pptx

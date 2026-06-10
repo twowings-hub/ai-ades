@@ -1,0 +1,17 @@
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL-ades
+    uid: postgres-ades
+    type: postgres
+    access: proxy
+    url: pm-postgres:5432
+    database: ${POSTGRES_DB}
+    user: ${POSTGRES_USER}
+    isDefault: false
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1500
+      timescaledb: false
+    secureJsonData:
+      password: ${POSTGRES_PASSWORD}

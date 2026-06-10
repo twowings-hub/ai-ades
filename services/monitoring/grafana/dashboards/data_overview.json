@@ -1,0 +1,93 @@
+{
+  "title": "AI-ADES Data Overview",
+  "uid": "ades-data-overview",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "",
+  "time": { "from": "now-5y", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "품질 분포 (OK / 미가공 / 과가공)",
+      "type": "piechart",
+      "datasource": { "type": "influxdb", "uid": "influxdb-ades" },
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 0 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "pieType": "pie",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb-ades" },
+          "query": "from(bucket: \"laser_process\")\n  |> range(start: -5y)\n  |> filter(fn: (r) => r._measurement == \"experiment_result\")\n  |> filter(fn: (r) => r._field == \"quality_score\")\n  |> group(columns: [\"quality\"])\n  |> count()\n  |> group()\n  |> rename(columns: {_value: \"count\"})\n  |> keep(columns: [\"quality\", \"count\"])",
+          "queryType": "flux"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Speed x Power 히트맵 (OK 구간)",
+      "description": "X축은 Speed(200/500/1000)를 2020-01-01 기준 +N초 오프셋 시각으로 인코딩한 값입니다. Y축은 Power(W), 색상은 빈도(count)입니다. quality=OK 데이터만 표시합니다.",
+      "type": "heatmap",
+      "datasource": { "type": "influxdb", "uid": "influxdb-ades" },
+      "gridPos": { "h": 9, "w": 8, "x": 8, "y": 0 },
+      "options": {
+        "calculate": true,
+        "calculation": {},
+        "cellGap": 1,
+        "color": {
+          "mode": "scheme",
+          "scheme": "Oranges",
+          "steps": 64,
+          "reverse": false,
+          "exponent": 0.5
+        },
+        "yAxis": { "axisPlacement": "left", "unit": "watt" },
+        "tooltip": { "show": true, "yHistogram": false },
+        "legend": { "show": true }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb-ades" },
+          "query": "from(bucket: \"laser_process\")\n  |> range(start: -5y)\n  |> filter(fn: (r) => r._measurement == \"experiment_result\")\n  |> filter(fn: (r) => r.quality == \"OK\")\n  |> filter(fn: (r) => r._field == \"speed\" or r._field == \"power\")\n  |> pivot(rowKey: [\"_time\", \"exp_no\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({\n      _time: time(v: int(v: r.speed) * 1000000000 + 1577836800000000000),\n      _value: r.power,\n      _field: \"power\",\n      _measurement: \"experiment_result\",\n      exp_no: r.exp_no\n    }))\n  |> group(columns: [\"_field\"])",
+          "queryType": "flux"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Defocus x Power 히트맵",
+      "description": "X축은 Defocus(0~4)를 2020-01-01 기준 +N초 오프셋 시각으로 인코딩한 값입니다. Y축은 Power(W), 색상은 빈도(count)입니다.",
+      "type": "heatmap",
+      "datasource": { "type": "influxdb", "uid": "influxdb-ades" },
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 0 },
+      "options": {
+        "calculate": true,
+        "calculation": {},
+        "cellGap": 1,
+        "color": {
+          "mode": "scheme",
+          "scheme": "Blues",
+          "steps": 64,
+          "reverse": false,
+          "exponent": 0.5
+        },
+        "yAxis": { "axisPlacement": "left", "unit": "watt" },
+        "tooltip": { "show": true, "yHistogram": false },
+        "legend": { "show": true }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "influxdb", "uid": "influxdb-ades" },
+          "query": "from(bucket: \"laser_process\")\n  |> range(start: -5y)\n  |> filter(fn: (r) => r._measurement == \"experiment_result\")\n  |> filter(fn: (r) => r._field == \"defocus\" or r._field == \"power\")\n  |> pivot(rowKey: [\"_time\", \"exp_no\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> map(fn: (r) => ({\n      _time: time(v: int(v: r.defocus) * 1000000000 + 1577836800000000000),\n      _value: r.power,\n      _field: \"power\",\n      _measurement: \"experiment_result\",\n      exp_no: r.exp_no\n    }))\n  |> group(columns: [\"_field\"])",
+          "queryType": "flux"
+        }
+      ]
+    }
+  ]
+}

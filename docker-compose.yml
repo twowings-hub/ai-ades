@@ -1,0 +1,159 @@
+# ============================================================
+# AI-ADES 로컬 개발용 docker-compose
+#
+# - PostgreSQL(pm-postgres) / Qdrant(qdrant) / Ollama(ollama)는
+#   rag-pm-matcher에서 이미 기동 중인 컨테이너를 그대로 사용한다.
+#   (이 파일에서 새로 띄우지 않음, ai-internal 네트워크로 연결)
+# - data-prep-agent / modeling-agent / execution-agent / frontend는
+#   Phase 1~4에서 소스 코드 작성 후 `--profile agents`로 기동한다.
+# ============================================================
+
+networks:
+  ai-internal:
+    external: true
+
+volumes:
+  influxdb-data:
+  mlflow-data:
+  grafana-data:
+  kafka-data:
+
+services:
+  # ----------------------------------------------------------
+  # InfluxDB: 시계열 데이터 저장 (Plasma 센서 등)
+  # ----------------------------------------------------------
+  influxdb:
+    image: influxdb:2.7
+    container_name: ades-influxdb
+    restart: unless-stopped
+    ports:
+      - "${INFLUXDB_PORT:-8086}:8086"
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: admin
+      DOCKER_INFLUXDB_INIT_PASSWORD: ades-admin-pw
+      DOCKER_INFLUXDB_INIT_ORG: ${INFLUXDB_ORG}
+      DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUXDB_BUCKET}
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUXDB_TOKEN}
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    networks:
+      - ai-internal
+
+  # ----------------------------------------------------------
+  # MLflow: 모델 실험 관리 (Phase 0은 sqlite 백엔드로 단순 구동)
+  # ----------------------------------------------------------
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.17.2
+    container_name: ades-mlflow
+    restart: unless-stopped
+    ports:
+      - "${MLFLOW_PORT:-5000}:5000"
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+      --host 0.0.0.0
+      --port 5000
+    volumes:
+      - mlflow-data:/mlflow
+    networks:
+      - ai-internal
+
+  # ----------------------------------------------------------
+  # Grafana: 실시간 모니터링 (포트 3002 사용 금지, 3010 고정)
+  # ----------------------------------------------------------
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: ades-grafana
+    restart: unless-stopped
+    ports:
+      - "${GRAFANA_PORT:-3010}:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      INFLUXDB_ORG: ${INFLUXDB_ORG}
+      INFLUXDB_BUCKET: ${INFLUXDB_BUCKET}
+      INFLUXDB_TOKEN: ${INFLUXDB_TOKEN}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./services/monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./services/monitoring/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - ai-internal
+
+  # ----------------------------------------------------------
+  # Kafka: 데이터 파이프라인 내부 전용 (호스트 미노출, KRaft 단일노드)
+  # ----------------------------------------------------------
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: ades-kafka
+    restart: unless-stopped
+    environment:
+      KAFKA_HEAP_OPTS: "-Xmx512m"
+      KAFKA_NODE_ID: "0"
+      KAFKA_PROCESS_ROLES: controller,broker
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - ai-internal
+
+  # ----------------------------------------------------------
+  # AI-ADES Agents (Phase 1~3에서 소스 작성 후 활성화)
+  # 실행: docker-compose --profile agents up -d
+  # ----------------------------------------------------------
+  data-prep-agent:
+    build: ./services/data-prep-agent
+    container_name: ades-data-prep-agent
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${DATA_PREP_PORT:-8010}:8010"
+    networks:
+      - ai-internal
+    profiles: ["agents"]
+
+  modeling-agent:
+    build: ./services/modeling-agent
+    container_name: ades-modeling-agent
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${MODELING_PORT:-8011}:8011"
+    volumes:
+      - ./services/modeling-agent/models:/app/models
+    networks:
+      - ai-internal
+    profiles: ["agents"]
+
+  execution-agent:
+    build: ./services/execution-agent
+    container_name: ades-execution-agent
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${EXECUTION_PORT:-8012}:8012"
+    networks:
+      - ai-internal
+    profiles: ["agents"]
+
+  # ----------------------------------------------------------
+  # Frontend (Phase 4에서 소스 작성 후 활성화)
+  # ----------------------------------------------------------
+  frontend:
+    build: ./frontend
+    container_name: ades-frontend
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    networks:
+      - ai-internal
+    profiles: ["agents"]

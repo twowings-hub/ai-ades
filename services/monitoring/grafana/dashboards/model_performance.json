@@ -1,0 +1,141 @@
+{
+  "title": "AI-ADES Model Performance",
+  "uid": "ades-model-performance",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "",
+  "time": { "from": "now-5y", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Speed x Power 분포 (OK 구간)",
+      "description": "Power를 5W 단위로 구간화(bin)하고, Speed(200/500/1000)별 OK 판정 건수를 색상 농도로 표시합니다. PostgreSQL SQL 집계 기반이라 InfluxDB 히트맵의 X축 인코딩 문제가 없습니다.",
+      "type": "table",
+      "datasource": { "type": "postgres", "uid": "postgres-ades" },
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "cellOptions": { "type": "color-background", "mode": "gradient" },
+            "align": "center"
+          },
+          "color": { "mode": "continuous-GrYlRd" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "power_bin" },
+            "properties": [
+              { "id": "displayName", "value": "Power (W, 5단위 구간)" },
+              { "id": "custom.cellOptions", "value": { "type": "auto" } },
+              { "id": "color", "value": { "mode": "thresholds" } }
+            ]
+          },
+          { "matcher": { "id": "byName", "options": "speed_200" }, "properties": [{ "id": "displayName", "value": "Speed=200" }] },
+          { "matcher": { "id": "byName", "options": "speed_500" }, "properties": [{ "id": "displayName", "value": "Speed=500" }] },
+          { "matcher": { "id": "byName", "options": "speed_1000" }, "properties": [{ "id": "displayName", "value": "Speed=1000" }] }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "postgres-ades" },
+          "format": "table",
+          "rawSql": "SELECT (FLOOR(power / 5) * 5)::int AS power_bin, COUNT(*) FILTER (WHERE speed = 200) AS speed_200, COUNT(*) FILTER (WHERE speed = 500) AS speed_500, COUNT(*) FILTER (WHERE speed = 1000) AS speed_1000 FROM experiments WHERE quality = 'OK' AND sensor_data_ok = TRUE GROUP BY power_bin ORDER BY power_bin",
+          "rawQuery": true
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Defocus x Power 분포 (전체)",
+      "description": "Power를 5W 단위로 구간화(bin)하고, Defocus(0~4)별 데이터 건수를 색상 농도로 표시합니다.",
+      "type": "table",
+      "datasource": { "type": "postgres", "uid": "postgres-ades" },
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "cellOptions": { "type": "color-background", "mode": "gradient" },
+            "align": "center"
+          },
+          "color": { "mode": "continuous-BlPu" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "power_bin" },
+            "properties": [
+              { "id": "displayName", "value": "Power (W, 5단위 구간)" },
+              { "id": "custom.cellOptions", "value": { "type": "auto" } },
+              { "id": "color", "value": { "mode": "thresholds" } }
+            ]
+          },
+          { "matcher": { "id": "byName", "options": "defocus_0" }, "properties": [{ "id": "displayName", "value": "Defocus=0" }] },
+          { "matcher": { "id": "byName", "options": "defocus_1" }, "properties": [{ "id": "displayName", "value": "Defocus=1" }] },
+          { "matcher": { "id": "byName", "options": "defocus_2" }, "properties": [{ "id": "displayName", "value": "Defocus=2" }] },
+          { "matcher": { "id": "byName", "options": "defocus_3" }, "properties": [{ "id": "displayName", "value": "Defocus=3" }] },
+          { "matcher": { "id": "byName", "options": "defocus_4" }, "properties": [{ "id": "displayName", "value": "Defocus=4" }] }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "postgres-ades" },
+          "format": "table",
+          "rawSql": "SELECT (FLOOR(power / 5) * 5)::int AS power_bin, COUNT(*) FILTER (WHERE defocus = 0) AS defocus_0, COUNT(*) FILTER (WHERE defocus = 1) AS defocus_1, COUNT(*) FILTER (WHERE defocus = 2) AS defocus_2, COUNT(*) FILTER (WHERE defocus = 3) AS defocus_3, COUNT(*) FILTER (WHERE defocus = 4) AS defocus_4 FROM experiments WHERE sensor_data_ok = TRUE GROUP BY power_bin ORDER BY power_bin",
+          "rawQuery": true
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "모델 성능 현황 (최신 학습 결과)",
+      "description": "/model/train 호출 시 model_metrics 테이블에 적재된 최신 R²/F1 값입니다. 상세 기록은 MLflow(http://localhost:5000, experiment: ai-ades-laser-cutting)에서 확인 가능합니다.",
+      "type": "stat",
+      "datasource": { "type": "postgres", "uid": "postgres-ades" },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 9 },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 4,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.6 },
+              { "color": "green", "value": 0.75 }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "trained_at" },
+            "properties": [
+              { "id": "unit", "value": "dateTimeAsIso" },
+              { "id": "thresholds", "value": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "graphMode": "none",
+        "colorMode": "background",
+        "textMode": "value_and_name",
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": "",
+          "values": true
+        },
+        "orientation": "horizontal"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "postgres-ades" },
+          "format": "table",
+          "rawSql": "SELECT depth_r2, kerf_r2, quality_f1_macro, quality_f1_ok, quality_accuracy, trained_at FROM model_metrics ORDER BY trained_at DESC LIMIT 1",
+          "rawQuery": true
+        }
+      ]
+    }
+  ]
+}
