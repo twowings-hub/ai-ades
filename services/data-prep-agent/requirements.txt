@@ -6,3 +6,4 @@ psycopg2-binary==2.9.10
 influxdb-client==1.48.0
 python-dotenv==1.0.1
 python-multipart==0.0.20
+requests==2.32.3

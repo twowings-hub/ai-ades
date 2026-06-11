@@ -14,3 +14,7 @@ matplotlib==3.9.3
 requests==2.32.3
 anthropic==0.40.0
 openai==1.57.0
+
+# LSTM-Autoencoder (Phase 6, Plasma 시계열 이상감지) — CPU 전용 wheel
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1

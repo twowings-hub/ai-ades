@@ -130,6 +130,9 @@ CREATE TABLE IF NOT EXISTS model_metrics (
     mlflow_run_id_depth   VARCHAR(64),
     mlflow_run_id_quality VARCHAR(64),
 
+    -- 학습에 사용된 experiments 건수 (Phase 6 자동 재학습 트리거 기준 비교용)
+    n_experiments   INTEGER,
+
     trained_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

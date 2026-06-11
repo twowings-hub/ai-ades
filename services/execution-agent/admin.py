@@ -25,6 +25,9 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 MODELING_AGENT_URL = os.getenv("MODELING_AGENT_URL", "http://modeling-agent:8011")
 
+# Phase 6: 누적 실험 건수가 마지막 학습 대비 이 값 이상 늘어나면 자동 재학습 트리거
+AUTO_RETRAIN_THRESHOLD = int(os.getenv("AUTO_RETRAIN_THRESHOLD", 50))
+
 
 class OperatorRequest(BaseModel):
     """감사 로그에 남길 운영자 정보를 포함하는 공통 요청 베이스"""
@@ -279,6 +282,62 @@ def model_retrain(req: OperatorRequest):
 def model_retrain_status():
     """모델 재학습 진행 상태를 조회한다"""
     return _response(True, RETRAIN_STATUS, "재학습 상태 조회 완료")
+
+
+def check_and_trigger_retrain() -> dict:
+    """
+    experiments 누적 건수가 마지막 학습 시점보다 AUTO_RETRAIN_THRESHOLD 이상 늘었으면
+    자동으로 재학습을 트리거한다 (Phase 6).
+
+    Returns:
+        {"triggered": bool, "current_count": int, "last_trained_count": int, "threshold": int}
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM experiments")
+            current_count = cur.fetchone()[0]
+
+            cur.execute(
+                "SELECT n_experiments FROM model_metrics ORDER BY trained_at DESC LIMIT 1"
+            )
+            row = cur.fetchone()
+            last_trained_count = row[0] if row and row[0] is not None else 0
+    finally:
+        conn.close()
+
+    triggered = False
+    if (
+        current_count - last_trained_count >= AUTO_RETRAIN_THRESHOLD
+        and RETRAIN_STATUS["status"] != "running"
+    ):
+        threading.Thread(target=_run_retrain, daemon=True).start()
+        approval.log_audit(
+            action_type="retrain",
+            operator="system(auto)",
+            description=(
+                f"[자동 재학습] 누적 실험 {current_count}건 "
+                f"(마지막 학습 {last_trained_count}건 대비 +{current_count - last_trained_count}건, "
+                f"기준 {AUTO_RETRAIN_THRESHOLD}건)"
+            ),
+        )
+        triggered = True
+
+    return {
+        "triggered": triggered,
+        "current_count": current_count,
+        "last_trained_count": last_trained_count,
+        "threshold": AUTO_RETRAIN_THRESHOLD,
+    }
+
+
+@router.post("/model/check-auto-retrain")
+def check_auto_retrain():
+    """
+    experiments 누적 건수를 확인하여 기준(AUTO_RETRAIN_THRESHOLD) 초과 시 자동 재학습을 트리거한다 (Phase 6).
+    데이터 업로드(/data/upload, /data/plasma/upload)나 Auto DOE 결과 저장(/doe/result) 후 호출된다.
+    """
+    return _response(True, check_and_trigger_retrain(), "자동 재학습 조건 확인 완료")
 
 
 # ------------------------------------------------------------

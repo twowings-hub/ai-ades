@@ -12,6 +12,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import mlflow
+import mlflow.pytorch
 import mlflow.xgboost
 from dotenv import load_dotenv
 
@@ -76,5 +77,28 @@ def log_model_run(
             plot_path = os.path.join(MODELS_DIR, f"{model_name}_importance.png")
             _save_importance_plot(feature_importance, plot_path)
             mlflow.log_artifact(plot_path)
+
+        return run.info.run_id
+
+
+def log_anomaly_model_run(model_name: str, model, params: dict, metrics: dict) -> str:
+    """
+    LSTM-Autoencoder(PyTorch) 1개를 MLflow run으로 기록한다 (Phase 6).
+
+    Args:
+        model_name: "lstm_autoencoder"
+        model: 학습 완료된 PyTorch 모델
+        params: 하이퍼파라미터 (window_size 등)
+        metrics: 평가 지표 (final_loss, threshold 등)
+
+    Returns:
+        mlflow run_id
+    """
+    _setup()
+
+    with mlflow.start_run(run_name=model_name) as run:
+        mlflow.log_params(params)
+        mlflow.log_metrics(metrics)
+        mlflow.pytorch.log_model(model, artifact_path="model")
 
         return run.info.run_id

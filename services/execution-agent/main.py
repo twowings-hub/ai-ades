@@ -343,6 +343,7 @@ def doe_result(req: DoeResultRequest):
     doe_attempts = suggestion["doe_attempt"]
 
     _insert_experiment(suggestion, req, quality)
+    admin.check_and_trigger_retrain()
 
     recipe_id = None
     recipe_saved = False

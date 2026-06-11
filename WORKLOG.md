@@ -218,3 +218,62 @@
 ### 다음 단계
 - Phase 4 E2E 통합테스트: `/admin` 9~10개 섹션 브라우저 실동작 확인, ExperimentPage→ApprovalPage→ResultPage 전체 플로우, 신규 샘플 Excel 업로드 테스트
 - 미해결 메모: `material_types`에 중복 등록된 "sample"(id=4 m1, id=5 m2) 항목 정리 여부 확인 필요
+
+---
+
+## CLAUDE.md GPU 정정 + Phase 6 사전 준비 3종 (2026-06-11)
+
+> 고객사 사전 미팅 전, Phase 6("설비 연동 + 실데이터 학습") 항목 중 고객사 협의 없이 개발 가능한 항목을 우선 진행.
+> 4번째 항목(설비 통신 드라이버 추상화)은 OPC-UA/RS-232/Ethernet 등 프로토콜·파라미터·Plasma 파일 규격이 고객사 확인 전까지 미정이므로 보류 결정.
+
+### 0. 문서 정정 — 개발 장비 GPU 사양 (commit `415e545`)
+- `docs/AI-ADES_개발플랜.md`: Surface Laptop Studio 1(32GB)에 NVIDIA GeForce RTX 3050 Ti Laptop GPU가 실제로 탑재되어 있음을 반영
+  - 5행: "GPU 없음" → "NVIDIA GeForce RTX 3050 Ti Laptop GPU 탑재"
+  - 622행: `GPU_ENABLED=false` 주석에 "Surface: GPU(RTX 3050 Ti) 탑재되어 있으나 개발 단계는 false" 명시
+
+### 1. Plasma ZIP 파서 (Phase 6 사전 준비 ①)
+- `services/data-prep-agent/plasma_parser.py` 신규: ZIP 내 `{exp_no}.csv`(세미콜론 구분, `Index;Time;Area;Plasma;P-Raw;Temp;T-Raw;Refl;R-Raw`)를 파싱
+  - `PLASMA_CHANNELS = ["Area","Plasma","P-Raw","Temp","T-Raw","Refl","R-Raw"]`
+  - `parse_plasma_zip(file_path)` → long-format DataFrame(exp_no, elapsed_ms, channel, value), `Time`(초)을 `*1000`하여 `elapsed_ms`로 변환
+- `services/data-prep-agent/plasma_loader.py` 신규: `load_plasma_to_postgres(df)` → `plasma_timeseries` 테이블에 `execute_values` 벌크 적재
+  - `experiments.exp_no`로 매칭해 `experiment_id` 결정, 미매칭 exp_no는 건너뛰고 결과에 보고
+  - `ts`는 `pd.Timestamp.now(tz="UTC")` 기준 + `elapsed_ms`로 임시 계산 (실데이터의 실제 타임스탬프 규격은 고객사 확인 필요)
+- `services/data-prep-agent/main.py`: `POST /data/plasma/upload` 엔드포인트 추가 (.zip 검증 → 파싱 → 적재 → 결과 메시지)
+- `data/test/generate_plasma_test_zip.py` 신규: exp_no 1~5, 500포인트 sin파+노이즈 합성 데이터로 테스트 ZIP 생성
+- 검증: 합성 ZIP 업로드 → 5개 실험 매칭, 정상 적재 확인 후 테스트 데이터 삭제(`DELETE FROM plasma_timeseries`)
+- **확인 필요(고객사)**: ZIP 내 CSV 파일명=exp_no 가정, `Time` 컬럼 단위(초) 가정, 실제 타임스탬프 산출 방식
+
+### 2. LSTM-Autoencoder 골격 (Phase 6 사전 준비 ②)
+- `services/modeling-agent/plasma_data.py` 신규
+  - `list_experiment_ids()`: `plasma_timeseries`에 데이터가 있는 experiment_id 목록
+  - `load_plasma_wide(experiment_id)`: long→wide 피벗(`PLASMA_CHANNELS` 순서로 정렬, `ffill().bfill()`)
+  - `split_segments(df)`: M1/M2/Blank 3구간으로 분리 — **현재는 행 수 균등 3분할 placeholder**, 실제 구간 검출(change-point detection) 로직으로 교체 필요
+- `services/modeling-agent/lstm_model.py` 신규
+  - `LSTMAutoencoder`(encoder LSTM → latent → decoder LSTM → Linear), `WINDOW_SIZE=50, STRIDE=10, HIDDEN_SIZE=16`
+  - `make_windows`, `train_autoencoder`(StandardScaler + MSE/Adam, threshold=재구성오차 95퍼센타일), `compute_reconstruction_error`, `detect_anomalies`, `evaluate_anomaly_detection`(F1/Precision/Recall)
+- `services/modeling-agent/requirements.txt`: CPU 전용 `torch==2.5.1` 추가 (`--extra-index-url https://download.pytorch.org/whl/cpu`)
+- `services/modeling-agent/mlflow_tracker.py`: `log_anomaly_model_run()` 신규 (`mlflow.pytorch.log_model` 사용 — 기존 `log_model_run`은 `mlflow.xgboost` 전용이라 PyTorch 모델에 사용 불가)
+- `services/modeling-agent/main.py`
+  - `POST /model/train-anomaly`: 전체 실험의 wide plasma 데이터를 윈도우화해 LSTM-Autoencoder 학습, 모델/스케일러/threshold를 `models/`에 저장 + MLflow 기록
+  - `POST /predict-anomaly` (`{"experiment_id": int}`): 구간별(M1/M2/Blank) 재구성오차·이상비율 반환
+  - `GET /model/anomaly-status`: 학습된 이상감지 모델의 threshold/final_loss/n_windows 조회
+- 검증: torch 포함 이미지 재빌드(`docker compose --profile agents build modeling-agent`) 후 합성 데이터로 학습→예측 엔드투엔드 정상 동작 확인
+- **확인 필요(고객사)**: `split_segments`의 실제 M1/M2/Blank 구간 판별 기준, `WINDOW_SIZE`/`HIDDEN_SIZE` 등 하이퍼파라미터는 실데이터로 재튜닝 필요
+
+### 3. 경량 자동 재학습 트리거 (Phase 6 사전 준비 ③)
+- 사용자 결정: Surface 32GB 메모리 부담을 고려해 신규 Airflow 컨테이너 없이 "경량 트리거(권장)" 방식 채택
+- `data/schema/schema.sql` + 운영 DB: `model_metrics`에 `n_experiments INTEGER` 컬럼 추가 (`ALTER TABLE`로 즉시 반영)
+- `services/execution-agent/admin.py`
+  - `AUTO_RETRAIN_THRESHOLD`(.env, 기본 50) 추가
+  - `check_and_trigger_retrain()`: 현재 `experiments` 건수 - 마지막 학습 시점 `n_experiments` 차이가 임계값 이상이고 재학습이 진행 중이 아니면 백그라운드 재학습 스레드 실행 + `audit_logs`에 `action_type="retrain", operator="system(auto)"`로 기록
+  - `POST /admin/model/check-auto-retrain` 엔드포인트 추가
+- `services/modeling-agent/main.py`: `_save_metrics_to_db()`에 `n_experiments` 파라미터 추가, 학습 시 `len(df)`로 기록
+- `services/data-prep-agent/main.py`: `EXECUTION_AGENT_URL` 추가, `/data/upload` 적재 성공 시 `_check_auto_retrain()` 호출(실패해도 업로드에 영향 없음)
+- `services/execution-agent/main.py`: `/doe/result`에서 실험 결과 적재 후 `admin.check_and_trigger_retrain()` 호출
+- `.env`/`.env.example`: `EXECUTION_AGENT_URL`, `AUTO_RETRAIN_THRESHOLD=50` 추가
+- 검증: 실제 운영 DB(experiments 338건)로 트리거 호출 → 임계값 초과로 실제 XGBoost 재학습 실행됨(depth R²=0.83, quality F1_OK=0.72), `model_metrics` id=6에 `n_experiments=328` 기록 확인 (테스트가 아닌 실제 모델 갱신)
+
+### 다음 단계
+- Phase 6 4번째 항목(설비 통신 드라이버 추상화: OPC-UA/RS-232/Ethernet 등)은 고객사 사전 미팅에서 프로토콜·파라미터 노출 범위·Kerf/Depth 측정 가능 여부·Plasma 파일 규격 확인 후 착수
+- Plasma 관련 placeholder(타임스탬프 계산, 파일명=exp_no 가정, split_segments 3분할) 실데이터 확인 후 정정
+- 본 세션 변경사항(Phase 6 사전 준비 3종)은 아직 git commit 미완료

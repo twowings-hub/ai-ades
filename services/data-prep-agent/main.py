@@ -9,12 +9,15 @@ import tempfile
 
 import psycopg2
 import psycopg2.extras
+import requests
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from excel_parser import parse_excel
 from influx_writer import write_to_influx
+from plasma_loader import load_plasma_to_postgres
+from plasma_parser import parse_plasma_zip
 from preprocessor import load_to_postgres
 
 load_dotenv()
@@ -30,6 +33,7 @@ app.add_middleware(
 )
 
 PORT = int(os.getenv("DATA_PREP_PORT", 8010))
+EXECUTION_AGENT_URL = os.getenv("EXECUTION_AGENT_URL", "http://execution-agent:8012")
 
 # 판정 -> 응답 키 매핑
 QUALITY_KEY_MAP = {"OK": "ok", "미가공": "underprocess", "과가공": "overprocess", "NG": "ng"}
@@ -49,6 +53,15 @@ def _get_connection():
         user=os.getenv("POSTGRES_USER"),
         password=os.getenv("POSTGRES_PASSWORD"),
     )
+
+
+def _check_auto_retrain():
+    """execution-agent에 자동 재학습 조건(experiments 누적 건수)을 확인 요청한다 (Phase 6).
+    실패해도 업로드 자체는 영향받지 않도록 예외를 무시한다."""
+    try:
+        requests.post(f"{EXECUTION_AGENT_URL}/admin/model/check-auto-retrain", timeout=5)
+    except requests.RequestException:
+        pass
 
 
 @app.get("/health")
@@ -84,11 +97,39 @@ async def upload_data(file: UploadFile = File(...)):
         QUALITY_KEY_MAP.get(k, k): int(v) for k, v in df["quality"].value_counts().items()
     }
 
+    if inserted > 0:
+        _check_auto_retrain()
+
     return _response(
         True,
         {"inserted": inserted, "distribution": distribution},
         f"{inserted}건 적재 완료",
     )
+
+
+@app.post("/data/plasma/upload")
+async def upload_plasma(file: UploadFile = File(...)):
+    """Plasma 센서 ZIP 업로드 -> 파싱 -> plasma_timeseries 적재 (Phase 6)"""
+    if not file.filename.endswith(".zip"):
+        raise HTTPException(status_code=400, detail="ZIP 파일(.zip)만 업로드 가능합니다")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
+        tmp.write(await file.read())
+        tmp_path = tmp.name
+
+    try:
+        df = parse_plasma_zip(tmp_path)
+        result = load_plasma_to_postgres(df)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"적재 실패: {exc}") from exc
+    finally:
+        os.remove(tmp_path)
+
+    message = f"{result['inserted']}건 적재 완료 ({result['matched_experiments']}개 실험)"
+    if result["unknown_exp_no"]:
+        message += f" / 미매칭 exp_no 건너뜀: {result['unknown_exp_no']}"
+
+    return _response(True, result, message)
 
 
 @app.get("/data/summary")
