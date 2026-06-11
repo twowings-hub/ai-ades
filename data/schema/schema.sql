@@ -96,6 +96,9 @@ CREATE TABLE IF NOT EXISTS recipes (
     pred_quality    VARCHAR(10),            -- 미가공 / OK / 과가공 / NG
     confidence      NUMERIC(5, 4),          -- 0~1
 
+    -- Auto DOE 시도 횟수 (OK 달성까지 걸린 회차)
+    doe_attempts    INTEGER,
+
     -- 운영자 승인 워크플로우
     status          VARCHAR(20) NOT NULL DEFAULT 'proposed', -- proposed / approved / rejected
     approved_by     VARCHAR(50),
@@ -131,3 +134,85 @@ CREATE TABLE IF NOT EXISTS model_metrics (
 );
 
 CREATE INDEX IF NOT EXISTS idx_model_metrics_trained_at ON model_metrics (trained_at);
+
+-- ------------------------------------------------------------
+-- 5. users: 관리자 콘솔 사용자 계정 (Phase 4)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS users (
+    id              SERIAL PRIMARY KEY,
+    name            VARCHAR(100) NOT NULL,
+    role            VARCHAR(20) DEFAULT 'operator',
+    password_hash   VARCHAR(255),
+    created_at      TIMESTAMP DEFAULT NOW()
+);
+
+-- ------------------------------------------------------------
+-- 6. notification_settings: 알림 설정 (Phase 4)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS notification_settings (
+    id              SERIAL PRIMARY KEY,
+    email           VARCHAR(200),
+    slack_webhook   VARCHAR(500),
+    notify_on_ok    BOOLEAN DEFAULT TRUE,
+    notify_on_failure           BOOLEAN DEFAULT TRUE,
+    notify_on_model_degradation BOOLEAN DEFAULT TRUE,
+    updated_at      TIMESTAMP DEFAULT NOW()
+);
+
+-- ------------------------------------------------------------
+-- 7. audit_logs: 관리자 작업 감사 로그 (Phase 4)
+--    action_type 값: 'llm_change' / 'approval' / 'rejection'
+--                     'setting_change' / 'retrain' / 'service_restart'
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id              SERIAL PRIMARY KEY,
+    action_type     VARCHAR(50),
+    operator        VARCHAR(100),
+    description     TEXT,
+    old_value       JSONB,
+    new_value       JSONB,
+    created_at      TIMESTAMP DEFAULT NOW()
+);
+
+-- ------------------------------------------------------------
+-- 8. approvals: Auto DOE 제안에 대한 운영자 승인/거부 이력 (Phase 3)
+--    recipe_id: OK 판정 후 /doe/result 에서 recipes.id로 갱신 (Phase 3 추가)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS approvals (
+    id            SERIAL PRIMARY KEY,
+    suggestion_id VARCHAR(50) UNIQUE,
+    status        VARCHAR(20),
+    -- 'approved' / 'rejected' / 'modified'
+    ai_params     JSONB,
+    final_params  JSONB,
+    operator_name VARCHAR(100),
+    reason        TEXT,
+    token         VARCHAR(100),
+    expires_at    TIMESTAMP,
+    recipe_id     INTEGER REFERENCES recipes (id),
+    created_at    TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_approvals_suggestion_id ON approvals (suggestion_id);
+
+-- ------------------------------------------------------------
+-- 9. material_types: 소재 종류 관리 (Phase 4)
+--    M1(Glass)/M2(Film) 소재 종류를 관리자 화면에서 등록/수정/비활성화하고
+--    실험 조건 입력 화면(ExperimentPage)에서 선택할 수 있도록 한다
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS material_types (
+    id              SERIAL PRIMARY KEY,
+    category        VARCHAR(10) NOT NULL,   -- 'm1'(Glass) / 'm2'(Film)
+    name            VARCHAR(50) NOT NULL,
+    description     VARCHAR(200),
+    is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_material_types_category_name ON material_types (category, name);
+
+-- 기존 POC 데이터(Glass/Film) 기본값 등록
+INSERT INTO material_types (category, name, description) VALUES
+    ('m1', 'Glass', 'POC 기본 M1 소재'),
+    ('m2', 'Film', 'POC 기본 M2 소재')
+ON CONFLICT (category, name) DO NOTHING;

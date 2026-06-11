@@ -171,3 +171,50 @@
 ### 다음 단계
 - Phase 3: Execution Agent (BoTorch 기반 Auto DOE, 레시피 승인 워크플로우, LLM 설명 연동) — 다음 세션에서 작업지시서 수령 후 착수
 - Phase 4 Admin Console: Phase 3 완료 후 착수, 누락된 DB 테이블 스펙 재확인 필요
+
+---
+
+## 소재 종류 관리 + ExperimentPage 외삽 경고 + Admin LLM 버그 수정 (2026-06-11)
+
+> Phase 3(Execution Agent), Phase 4(Admin Console 9개 섹션)는 본 세션 이전에 이미 구현된 상태에서 시작.
+> CLAUDE.md의 Phase 0~2 표기를 실제 진행 상황에 맞춰 Phase 3 ✅ 완료, Phase 4 진행중으로 갱신 (자세한 내용은 CLAUDE.md/docs/PHASE4_ADMIN_SPEC.md 참고).
+
+### 1. 소재 종류(material_types) 관리 — Admin CRUD + 실험 페이지 연동
+- `data/schema/schema.sql`: `material_types` 테이블 신규 (`category`('m1'/'m2'), `name`, `description`, `is_active`), Glass/Film 시드 적재
+- `services/execution-agent/material_types.py` 신규: `GET/POST/PATCH/DELETE /admin/material-types` (전체 audit_logs 기록)
+- `services/execution-agent/main.py`: `GET /material-types`(공개, 활성 항목만) 추가, `material_types.router` 등록
+- `services/execution-agent/recipe_db.py`: `m1_glass`/`m2_film` 컬럼 추가, `find_recipe`/`save_recipe`가 소재 종류까지 매칭
+- `frontend/src/pages/admin/MaterialTypesSection.jsx` 신규: 추가/수정/활성·비활성/삭제 전체 CRUD UI
+- `frontend/src/pages/AdminPage.jsx`: "소재 종류 관리" 섹션 추가
+
+### 2. ExperimentPage — M1/M2 길이·두께 자유 입력 + 외삽(extrapolation) 경고
+- 사용자 질의: "M1, M2 값이 고정되어 있는데 전혀 다른 소재/두께가 투입되는 경우는?"
+- 결론: M1/M2 길이·두께를 고정 버튼 → 자유 숫자 입력 + 프리셋 버튼으로 전환, 학습 데이터 범위를 벗어나면 경고 표시
+- `services/data-prep-agent/main.py`: `/data/distribution`에 `data_ranges`(m1_length_mm/m2_length_mm/thickness_um의 min/max) 추가
+  - 현재 범위: m1_length∈[4,20]mm, m2_length∈[10,50]mm, thickness∈[98,177.5]μm
+- `frontend/src/pages/ExperimentPage.jsx`: M1/M2 Length, Thickness를 숫자 입력 필드로 변경, `outOfRange()` 헬퍼로 범위 이탈 시
+  "⚠ 학습 데이터 범위를 벗어났습니다. 예측 신뢰도가 낮을 수 있습니다 (Auto DOE 탐색 횟수 증가 권장)" 경고 표시
+- `frontend/src/context/SessionContext.jsx`: `material` 상태에 `m1_glass`/`m2_film` 추가
+
+### 3. 업로드 테스트용 샘플 Excel 10개 생성
+- `data/test/generate_test_files.py` 신규: POC Data+Sheet1 형식(header=1)으로 10건씩 들어있는 Excel 10개 생성
+- `data/test/AI-ADES_test_upload_sample_01~10.xlsx` (No.2001~2100, 기존 데이터와 No. 중복 없음)
+- `excel_parser.parse_excel()`로 01번 파일 파싱 검증 완료 (10건, OK:5/미가공:3/NG:2/센서없음:1, is_outlier 정상 플래그)
+
+### 4. 버그 수정 — Admin "LLM 모델 선택"에서 provider별 모델 목록 미분리
+- 증상: provider를 `openai`로 선택해도 모델 드롭다운에 `claude-sonnet-4-6`이 함께 노출됨
+- 원인: `admin.py`의 `API_MODELS`가 `["claude-sonnet-4-6","gpt-4o","gpt-4o-mini"]` 단일 배열로, provider 구분 없이 그대로 응답
+- 수정:
+  - `services/execution-agent/admin.py`: `API_MODELS = {"claude": [...], "openai": [...]}` 딕셔너리로 변경, `/admin/llm/available-models` 응답의 `api` 필드를 provider별 딕셔너리로 변경
+  - `frontend/src/pages/admin/LlmSection.jsx`: `currentOptions = provider === 'ollama' ? models.ollama : (models.api?.[provider] ?? [])`로 수정
+- **컨테이너 재빌드 필요했음**: `execution-agent`는 소스 볼륨 마운트가 없어 `restart`만으로는 코드 변경이 반영되지 않음
+  → `docker compose --profile agents build execution-agent && docker compose --profile agents up -d execution-agent` 후 정상 응답 확인
+  (`docs/OPERATIONS.md`에 이 주의사항 명시)
+
+### 5. 문서 정리
+- `CLAUDE.md`가 517줄로 비대해져 세션 시작 시 토큰 부담 → 핵심(프로젝트 개요/판정기준·탐색공간/코딩규칙/Phase 현황/작업요청방식)만 남기고 분리
+- 신규: `docs/ARCHITECTURE.md`(디렉토리 구조·기술스택), `docs/DATA_SPEC.md`(Excel 구조·소재종류·외삽 경고), `docs/OPERATIONS.md`(실행명령·환경변수·재빌드 주의사항), `docs/PHASE4_ADMIN_SPEC.md`(Admin Console 설계+구현현황)
+
+### 다음 단계
+- Phase 4 E2E 통합테스트: `/admin` 9~10개 섹션 브라우저 실동작 확인, ExperimentPage→ApprovalPage→ResultPage 전체 플로우, 신규 샘플 Excel 업로드 테스트
+- 미해결 메모: `material_types`에 중복 등록된 "sample"(id=4 m1, id=5 m2) 항목 정리 여부 확인 필요

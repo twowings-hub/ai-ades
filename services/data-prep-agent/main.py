@@ -11,6 +11,7 @@ import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 
 from excel_parser import parse_excel
 from influx_writer import write_to_influx
@@ -19,6 +20,14 @@ from preprocessor import load_to_postgres
 load_dotenv()
 
 app = FastAPI(title="AI-ADES Data Preparation Agent")
+
+# 프론트엔드(Vite 개발 서버)에서의 직접 호출 허용
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:5173").split(","),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 PORT = int(os.getenv("DATA_PREP_PORT", 8010))
 
@@ -123,6 +132,16 @@ def get_distribution():
                 """
             )
             material_rows = cur.fetchall()
+
+            cur.execute(
+                """
+                SELECT MIN(m1_length_mm), MAX(m1_length_mm),
+                       MIN(m2_length_mm), MAX(m2_length_mm),
+                       MIN(thickness_um), MAX(thickness_um)
+                FROM experiments
+                """
+            )
+            range_row = cur.fetchone()
     finally:
         conn.close()
 
@@ -138,9 +157,17 @@ def get_distribution():
         for m1_glass, m1_len, m2_film, m2_len, count in material_rows
     ]
 
+    # 학습 데이터 범위 (이 범위를 벗어난 입력값은 모델 예측이 외삽(extrapolation)이 되므로
+    # 운영자에게 신뢰도 경고를 표시하는 데 사용한다)
+    data_ranges = {
+        "m1_length_mm": {"min": float(range_row[0]), "max": float(range_row[1])} if range_row[0] is not None else None,
+        "m2_length_mm": {"min": float(range_row[2]), "max": float(range_row[3])} if range_row[2] is not None else None,
+        "thickness_um": {"min": float(range_row[4]), "max": float(range_row[5])} if range_row[4] is not None else None,
+    }
+
     return _response(
         True,
-        {"by_quality": by_quality, "by_material": by_material},
+        {"by_quality": by_quality, "by_material": by_material, "data_ranges": data_ranges},
         "분포 조회 완료",
     )
 

@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-ADES 관리자 매뉴얼</title>
+<style>
+:root {
+  --bg: #F8F9FA; --bg2: #FFFFFF; --bg3: #F1F3F5;
+  --border: #DEE2E6; --border2: #CED4DA;
+  --text: #212529; --muted: #6C757D; --hint: #ADB5BD;
+  --ok: #2F9E44; --ok-bg: #EBFBEE; --ok-border: #8CE99A;
+  --warn: #E67700; --warn-bg: #FFF3BF; --warn-border: #FFD43B;
+  --danger: #C92A2A; --danger-bg: #FFF5F5; --danger-border: #FFA8A8;
+  --info: #1971C2; --info-bg: #E7F5FF; --info-border: #74C0FC;
+  --laser: #0C8599; --laser-bg: #E3FAFC; --laser-border: #66D9E8;
+  --purple: #6741D9; --purple-bg: #F3F0FF; --purple-border: #B197FC;
+  --radius: 8px; --radius-lg: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: 'Apple SD Gothic Neo','Noto Sans KR',sans-serif; font-size: 15px; line-height: 1.7; }
+a { color: var(--info); text-decoration: none; }
+
+.layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+.sidebar { background: var(--bg2); border-right: 1px solid var(--border); padding: 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.main { padding: 48px 56px; max-width: 920px; }
+
+.sb-header { padding: 24px 20px 16px; border-bottom: 1px solid var(--border); }
+.sb-title { font-size: 14px; font-weight: 700; }
+.sb-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.sb-badge { display: inline-block; background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 100px; margin-top: 6px; }
+.sb-group { padding: 12px 20px 4px; font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--hint); }
+.sb-item { display: block; padding: 7px 20px; font-size: 13px; color: var(--muted); cursor: pointer; border-left: 3px solid transparent; transition: all .15s; }
+.sb-item:hover { background: var(--bg3); color: var(--text); }
+.sb-item.active { background: var(--purple-bg); color: var(--purple); border-left-color: var(--purple); font-weight: 600; }
+.sb-item.sub { padding-left: 32px; font-size: 12px; }
+
+h1 { font-size: 28px; font-weight: 800; letter-spacing: -.02em; margin-bottom: 8px; }
+h2 { font-size: 20px; font-weight: 700; margin: 48px 0 16px; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
+h3 { font-size: 16px; font-weight: 700; margin: 28px 0 12px; }
+h4 { font-size: 14px; font-weight: 700; margin: 20px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+p { margin-bottom: 14px; }
+.lead { font-size: 16px; color: var(--muted); margin-bottom: 32px; }
+
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow); }
+.card-title { font-size: 14px; font-weight: 700; margin-bottom: 12px; }
+
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 100px; }
+.badge-ok { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok-border); }
+.badge-warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn-border); }
+.badge-danger { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger-border); }
+.badge-info { background: var(--info-bg); color: var(--info); border: 1px solid var(--info-border); }
+.badge-purple { background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple-border); }
+.badge-laser { background: var(--laser-bg); color: var(--laser); border: 1px solid var(--laser-border); }
+
+.alert { padding: 14px 16px; border-radius: var(--radius); margin-bottom: 16px; font-size: 14px; border-left: 4px solid; }
+.alert-ok { background: var(--ok-bg); border-color: var(--ok); }
+.alert-warn { background: var(--warn-bg); border-color: var(--warn); }
+.alert-info { background: var(--info-bg); border-color: var(--info); }
+.alert-danger { background: var(--danger-bg); border-color: var(--danger); }
+.alert-purple { background: var(--purple-bg); border-color: var(--purple); }
+
+table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+th { background: var(--bg3); padding: 10px 14px; text-align: left; font-size: 12px; font-weight: 700; color: var(--muted); border-bottom: 2px solid var(--border); }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; }
+
+.cmd { background: #1E1E2E; color: #CDD6F4; font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 13px; padding: 16px 20px; border-radius: var(--radius); margin: 12px 0; line-height: 1.8; overflow-x: auto; }
+.cmd .c { color: #6C7086; }
+.cmd .k { color: #89B4FA; }
+.cmd .s { color: #A6E3A1; }
+.cmd .n { color: #FAB387; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+
+.section-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); margin-bottom: 32px; overflow: hidden; }
+.sc-header { padding: 16px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+.sc-num { width: 28px; height: 28px; border-radius: 50%; background: var(--purple); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; }
+.sc-title { font-size: 15px; font-weight: 700; }
+.sc-sub { font-size: 13px; color: var(--muted); }
+.sc-body { padding: 20px 24px; }
+
+.field-list { list-style: none; }
+.field-item { padding: 10px 0; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 180px 1fr; gap: 12px; font-size: 14px; }
+.field-item:last-child { border-bottom: none; }
+.field-name { font-weight: 700; }
+.field-desc { color: var(--muted); }
+
+.step { display: flex; gap: 14px; margin-bottom: 20px; align-items: flex-start; }
+.step-num { width: 28px; height: 28px; border-radius: 50%; background: var(--info); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; margin-top: 2px; }
+.step-body { flex: 1; }
+.step-title { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.step-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+.faq { border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; overflow: hidden; }
+.faq-q { padding: 13px 16px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; background: var(--bg2); }
+.faq-q:hover { background: var(--bg3); }
+.faq-a { padding: 13px 16px; font-size: 14px; color: var(--muted); background: var(--bg3); border-top: 1px solid var(--border); display: none; line-height: 1.7; }
+.faq.open .faq-a { display: block; }
+.faq-icon { color: var(--hint); transition: transform .2s; }
+.faq.open .faq-icon { transform: rotate(90deg); }
+
+hr.section { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+.section-page { min-height: 60px; padding-top: 8px; }
+
+/* 서비스 상태 도트 */
+.status-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.status-row:last-child { border-bottom: none; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-ok { background: var(--ok); }
+.dot-warn { background: var(--warn); }
+.dot-err { background: var(--danger); }
+.status-name { flex: 1; font-weight: 600; }
+.status-port { font-family: monospace; font-size: 12px; color: var(--muted); width: 80px; }
+
+/* LLM 카드 */
+.llm-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+.llm-card.selected { border-color: var(--info); background: var(--info-bg); }
+.llm-name { font-size: 14px; font-weight: 700; }
+.llm-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; height: auto; }
+  .main { padding: 24px 20px; }
+  .grid2, .grid3 { grid-template-columns: 1fr; }
+  .field-item { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="sidebar">
+  <div class="sb-header">
+    <div class="sb-title">AI-ADES</div>
+    <div class="sb-sub">관리자 매뉴얼</div>
+    <div class="sb-badge">관리자 전용</div>
+  </div>
+  <div class="sb-group">시작하기</div>
+  <a class="sb-item active" href="#intro" onclick="setActive(this)">관리자 역할</a>
+  <a class="sb-item" href="#access" onclick="setActive(this)">관리자 화면 접속</a>
+  <a class="sb-item" href="#layout" onclick="setActive(this)">화면 구성</a>
+  <div class="sb-group">Admin Console 섹션</div>
+  <a class="sb-item" href="#s1" onclick="setActive(this)">1. 시스템 상태</a>
+  <a class="sb-item" href="#s2" onclick="setActive(this)">2. 서비스 관리</a>
+  <a class="sb-item" href="#s3" onclick="setActive(this)">3. LLM 모델 선택</a>
+  <a class="sb-item" href="#s4" onclick="setActive(this)">4. 모델 재학습</a>
+  <a class="sb-item" href="#s5" onclick="setActive(this)">5. 판정 기준 설정</a>
+  <a class="sb-item" href="#s6" onclick="setActive(this)">6. 사용자 관리</a>
+  <a class="sb-item" href="#s7" onclick="setActive(this)">7. 알림 설정</a>
+  <a class="sb-item" href="#s8" onclick="setActive(this)">8. 감사 로그</a>
+  <a class="sb-item" href="#s9" onclick="setActive(this)">9. 데이터 관리</a>
+  <div class="sb-group">운영 가이드</div>
+  <a class="sb-item" href="#monitoring" onclick="setActive(this)">Grafana 모니터링</a>
+  <a class="sb-item" href="#mlflow" onclick="setActive(this)">MLflow 모델 관리</a>
+  <a class="sb-item" href="#ops" onclick="setActive(this)">정기 운영 체크리스트</a>
+  <a class="sb-item" href="#trouble" onclick="setActive(this)">장애 대응 가이드</a>
+</nav>
+
+<main class="main">
+
+  <section class="section-page" id="intro">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <span class="badge badge-purple">관리자 매뉴얼</span>
+      <span class="badge badge-danger">관리자 전용</span>
+    </div>
+    <h1>AI-ADES 관리자 매뉴얼</h1>
+    <p class="lead">시스템 운영 · LLM 설정 · 모델 관리 · 장애 대응을 담당하는 관리자를 위한 상세 안내서</p>
+
+    <div class="alert alert-purple">
+      <strong>이 매뉴얼은 관리자 전용입니다.</strong> 일반 운영자는 사용자 매뉴얼을 참조하세요. 관리자 화면의 설정 변경은 시스템 전체에 즉시 영향을 미치므로 신중하게 操作하세요.
+    </div>
+
+    <h2>관리자의 역할</h2>
+    <table>
+      <tr><th>역할</th><th>주요 업무</th><th>빈도</th></tr>
+      <tr><td>시스템 관리</td><td>서비스 기동/종료, 헬스체크 모니터링, 장애 대응</td><td>매일</td></tr>
+      <tr><td>AI 관리</td><td>LLM 모델 전환, 모델 재학습 트리거, 성능 모니터링</td><td>주 1회 또는 필요 시</td></tr>
+      <tr><td>설정 관리</td><td>판정 기준 변경, 탐색 공간 조정</td><td>필요 시</td></tr>
+      <tr><td>사용자 관리</td><td>운영자 계정 생성/수정/삭제</td><td>필요 시</td></tr>
+      <tr><td>데이터 관리</td><td>DB 백업, 데이터 정제, 이상값 처리</td><td>주 1회</td></tr>
+    </table>
+  </section>
+
+  <hr class="section">
+
+  <section class="section-page" id="access">
+    <h2>관리자 화면 접속</h2>
+
+    <div class="card">
+      <div class="card-title">🔗 접속 주소</div>
+      <table>
+        <tr><th>화면</th><th>URL</th><th>계정</th></tr>
+        <tr><td>Admin Console</td><td style="font-family:monospace">http://localhost:5173/admin</td><td>관리자 계정 필요</td></tr>
+        <tr><td>Grafana 대시보드</td><td style="font-family:monospace">http://localhost:3010</td><td>admin / admin (초기값)</td></tr>
+        <tr><td>MLflow 실험 관리</td><td style="font-family:monospace">http://localhost:5000</td><td>인증 없음</td></tr>
+        <tr><td>InfluxDB</td><td style="font-family:monospace">http://localhost:8086</td><td>ades-secret-token</td></tr>
+      </table>
+    </div>
+
+    <div class="alert alert-warn">
+      <strong>보안 주의:</strong> Grafana 초기 비밀번호(admin/admin)는 첫 로그인 후 반드시 변경하세요. MLflow는 현재 인증 없이 접근 가능합니다. 내부 네트워크에서만 접근 가능하도록 방화벽을 설정하세요.
+    </div>
+  </section>
+
+  <hr class="section">
+
+  <section class="section-page" id="layout">
+    <h2>관리자 화면 구성</h2>
+    <p>Admin Console은 왼쪽 사이드바와 오른쪽 콘텐츠 영역으로 구성됩니다.</p>
+
+    <div class="card">
+      <div class="card-title">📐 화면 레이아웃</div>
+      <table>
+        <tr><th>영역</th><th>설명</th></tr>
+        <tr><td>사이드바</td><td>9개 섹션으로 구성된 왼쪽 메뉴. 클릭하면 해당 섹션으로 전환됩니다.</td></tr>
+        <tr><td>콘텐츠 영역</td><td>선택된 섹션의 설정 화면이 표시됩니다.</td></tr>
+        <tr><td>상단 네비게이션</td><td>운영자 화면(/)으로 돌아가는 링크가 포함됩니다.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <hr class="section">
+
+  <!-- 섹션 1: 시스템 상태 -->
+  <section class="section-page" id="s1">
+    <h2>섹션 1 — 시스템 상태</h2>
+    <p>6개 서비스의 실시간 헬스체크와 시스템 리소스 현황을 확인하는 화면입니다. <strong>30초마다 자동으로 갱신</strong>됩니다.</p>
+
+    <h3>서비스 헬스체크 표시</h3>
+    <div class="card">
+      <div class="status-row"><div class="dot dot-ok"></div><span class="status-name">data-prep-agent</span><span class="status-port">:8010</span><span class="badge badge-ok">정상</span></div>
+      <div class="status-row"><div class="dot dot-ok"></div><span class="status-name">modeling-agent</span><span class="status-port">:8011</span><span class="badge badge-ok">정상</span></div>
+      <div class="status-row"><div class="dot dot-ok"></div><span class="status-name">execution-agent</span><span class="status-port">:8012</span><span class="badge badge-ok">정상</span></div>
+      <div class="status-row"><div class="dot dot-ok"></div><span class="status-name">MLflow</span><span class="status-port">:5000</span><span class="badge badge-ok">정상</span></div>
+      <div class="status-row"><div class="dot dot-warn"></div><span class="status-name">InfluxDB</span><span class="status-port">:8086</span><span class="badge badge-warn">지연 120ms</span></div>
+      <div class="status-row"><div class="dot dot-ok"></div><span class="status-name">Grafana</span><span class="status-port">:3010</span><span class="badge badge-ok">정상</span></div>
+    </div>
+
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">상태 색상</div>
+        <div class="field-desc"><span class="badge badge-ok">초록 — 정상</span> 서비스가 응답하고 있습니다. <span class="badge badge-warn" style="margin-left:6px">노랑 — 지연</span> 응답이 느립니다(200ms 초과). <span class="badge badge-danger" style="margin-left:6px">빨강 — 장애</span> 응답 없음.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">응답시간 (ms)</div>
+        <div class="field-desc">각 서비스의 /health 엔드포인트 응답 시간입니다. 정상 범위는 200ms 이하입니다. 200~500ms는 경고, 500ms 초과 또는 무응답은 장애로 판단합니다.</div>
+      </li>
+    </ul>
+
+    <h3>시스템 리소스 패널</h3>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">CPU 사용률 (%)</div>
+        <div class="field-desc">현재 호스트 CPU 사용률입니다. 모델 재학습 중에는 80~90%까지 올라갈 수 있습니다. 평상시 40% 이하가 정상입니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">RAM 사용량 (GB)</div>
+        <div class="field-desc">현재/전체 메모리 사용량입니다. Ollama 7b 모델 기준 약 6GB를 점유합니다. 총 32GB 중 25GB 이상 사용 시 경고 조치가 필요합니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">Disk 사용량 (GB)</div>
+        <div class="field-desc">호스트 디스크 사용량입니다. MLflow 아티팩트와 DB 백업 파일이 축적됩니다. 80% 이상 시 오래된 백업 파일을 정리하세요.</div>
+      </li>
+    </ul>
+
+    <h3>모델 성능 패널</h3>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">depth R²</div>
+        <div class="field-desc">Depth 예측 모델의 결정계수입니다. 1에 가까울수록 정확합니다. 0.75 이상 유지가 목표이며, 0.70 이하로 떨어지면 재학습이 필요합니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">kerf R²</div>
+        <div class="field-desc">Kerf 예측 모델의 결정계수입니다. depth R²와 함께 모델 품질을 나타냅니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">OK F1</div>
+        <div class="field-desc">품질 분류 모델에서 OK 클래스의 F1 점수입니다. 0.60 이상 유지가 목표입니다. OK 데이터가 부족(13.7%)하여 낮게 나올 수 있으며, 실험 데이터 누적 시 향상됩니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">마지막 학습일</div>
+        <div class="field-desc">가장 최근 모델 학습이 완료된 날짜입니다. 신규 실험 데이터가 50건 이상 누적되면 재학습을 고려하세요.</div>
+      </li>
+    </ul>
+
+    <h3>LLM 상태 패널</h3>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">Provider</div>
+        <div class="field-desc">현재 사용 중인 LLM 공급자입니다. ollama(로컬), claude(API), openai(API) 중 하나입니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">Model</div>
+        <div class="field-desc">현재 로드된 모델명입니다. 예: qwen2.5:7b-instruct</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">응답시간 avg</div>
+        <div class="field-desc">LLM 설명 생성에 걸리는 평균 시간입니다. 7b 모델 기준 3~5초가 정상입니다. 10초 이상이면 Ollama 서비스를 재시작하세요.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">오늘 호출 횟수</div>
+        <div class="field-desc">당일 /doe/suggest 호출 횟수입니다. API 모델(claude, openai) 사용 시 비용 계산에 활용하세요.</div>
+      </li>
+    </ul>
+  </section>
+
+  <hr class="section">
+
+  <!-- 섹션 2: 서비스 관리 -->
+  <section class="section-page" id="s2">
+    <h2>섹션 2 — 서비스 관리</h2>
+    <p>각 컨테이너의 재시작과 로그를 관리하는 화면입니다.</p>
+
+    <h3>서비스별 재시작 버튼</h3>
+    <table>
+      <tr><th>버튼</th><th>동작</th><th>주의사항</th></tr>
+      <tr><td>재시작</td><td>해당 서비스 컨테이너를 재시작합니다. 약 10~30초 소요됩니다.</td><td>재시작 중에는 해당 서비스의 API 호출이 실패합니다. 운영자에게 미리 알려주세요.</td></tr>
+      <tr><td>로그</td><td>해당 서비스의 최근 로그 100줄을 팝업으로 표시합니다.</td><td>오류 발생 시 로그에서 원인을 확인하세요.</td></tr>
+    </table>
+
+    <div class="alert alert-danger">
+      <strong>execution-agent 재시작 제한:</strong> execution-agent는 자기 자신을 재시작할 수 없습니다. 버튼이 비활성화되어 있으며 클릭 시 터미널 명령어가 안내됩니다. 터미널에서 직접 실행하세요.
+    </div>
+
+    <h3>터미널에서 직접 재시작하는 방법</h3>
+    <div class="cmd">
+<span class="c"># 개별 서비스 재시작</span>
+docker-compose restart <span class="n">execution-agent</span>
+docker-compose restart <span class="n">modeling-agent</span>
+docker-compose restart <span class="n">data-prep-agent</span>
+
+<span class="c"># 전체 서비스 재시작 (운영 중단 발생)</span>
+docker-compose down
+docker-compose up -d
+
+<span class="c"># 로그 실시간 확인</span>
+docker-compose logs -f <span class="n">modeling-agent</span>
+    </div>
+
+    <h3>전체 재시작</h3>
+    <p>[전체 재시작] 버튼은 확인 모달이 표시된 후 실행됩니다. 모든 서비스가 동시에 재시작되므로 약 1~2분간 시스템이 중단됩니다. <strong>운영 시간 중에는 사용을 피하세요.</strong></p>
+  </section>
+
+  <hr class="section">
+
+  <!-- 섹션 3: LLM 모델 선택 -->
+  <section class="section-page" id="s3">
+    <h2>섹션 3 — LLM 모델 선택</h2>
+    <p>AI 자연어 설명 생성에 사용하는 LLM을 변경하는 화면입니다. <strong>코드 수정이나 재시작 없이 즉시 전환</strong>됩니다.</p>
+
+    <div class="alert alert-info">
+      <strong>전환 즉시 반영:</strong> 모델을 변경하고 [변경사항 적용]을 누르면 다음 /doe/suggest 호출부터 새 모델이 사용됩니다. 모든 변경은 감사 로그에 기록됩니다.
+    </div>
+
+    <h3>로컬 모델 (Ollama)</h3>
+    <p>인터넷 연결 없이 사용 가능한 로컬 모델입니다. 공장 보안 환경에 적합합니다.</p>
+
+    <table>
+      <tr><th>모델명</th><th>RAM 요구량</th><th>응답속도</th><th>품질</th><th>권장 환경</th></tr>
+      <tr><td style="font-family:monospace">qwen2.5:7b-instruct</td><td>~6 GB</td><td>3~5초</td><td>기본</td><td>Surface 32GB (현재 기본값)</td></tr>
+      <tr><td style="font-family:monospace">qwen2.5:14b</td><td>~10 GB</td><td>4~7초</td><td>향상</td><td>RAM 64GB+ 워크스테이션</td></tr>
+      <tr><td style="font-family:monospace">qwen2.5:32b</td><td>~24 GB</td><td>8~15초</td><td>고급</td><td>RAM 128GB+ 워크스테이션</td></tr>
+      <tr><td style="font-family:monospace">llama3.3:70b</td><td>~48 GB</td><td>~2초(GPU)</td><td>최고급</td><td>GPU 워크스테이션</td></tr>
+    </table>
+
+    <h3>API 모델 (인터넷 필요)</h3>
+    <table>
+      <tr><th>모델</th><th>API Key</th><th>비용</th><th>특징</th></tr>
+      <tr><td>Claude (Anthropic)</td><td>CLAUDE_API_KEY</td><td>유료 (토큰당)</td><td>한국어 품질 최고, 긴 설명 생성에 강함</td></tr>
+      <tr><td>GPT-4o (OpenAI)</td><td>OPENAI_API_KEY</td><td>유료 (토큰당)</td><td>범용 고성능, 영어 추론 우수</td></tr>
+    </table>
+
+    <h3>버튼 설명</h3>
+    <table>
+      <tr><th>버튼</th><th>동작</th><th>주의사항</th></tr>
+      <tr><td>연결 테스트</td><td>선택된 모델에 테스트 프롬프트를 전송하고 응답시간을 측정합니다. "연결 테스트 성공" 응답이 오면 정상입니다.</td><td>모델 변경 전 반드시 테스트를 먼저 실행하세요.</td></tr>
+      <tr><td>변경사항 적용</td><td>.env 파일을 수정하고 llm_explainer를 런타임 재초기화합니다. 재시작 없이 즉시 적용됩니다.</td><td>테스트 후에 적용하세요. 실패 시 Ollama 기본 모델로 자동 복구됩니다.</td></tr>
+    </table>
+
+    <h3>새 모델 설치 방법 (터미널)</h3>
+    <div class="cmd">
+<span class="c"># 사용 가능한 모델 목록 확인 (Admin Console에서도 조회 가능)</span>
+ollama list
+
+<span class="c"># 새 모델 다운로드 (용량 주의: 14b ≈ 9GB, 32b ≈ 20GB)</span>
+ollama pull <span class="n">qwen2.5:14b</span>
+
+<span class="c"># 다운로드 완료 확인 후 Admin Console에서 전환</span>
+ollama list | grep <span class="n">qwen2.5:14b</span>
+    </div>
+
+    <div class="alert alert-warn">
+      <strong>중요:</strong> ollama pull로 다운로드를 완료한 후에 Admin Console에서 전환하세요. 모델이 설치되지 않은 상태에서 전환하면 LLM 설명 생성이 실패합니다 (나머지 API는 정상 작동).
+    </div>
+  </section>
+
+  <hr class="section">
+
+  <!-- 섹션 4: 모델 재학습 -->
+  <section class="section-page" id="s4">
+    <h2>섹션 4 — 모델 재학습</h2>
+    <p>XGBoost 예측 모델을 새 데이터로 재학습하는 화면입니다.</p>
+
+    <h3>현재 학습 데이터 현황</h3>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">총 실험 건수</div>
+        <div class="field-desc">현재 experiments 테이블의 전체 데이터 건수입니다. 숫자가 증가할수록 AI 예측 정확도가 향상됩니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">마지막 학습일</div>
+        <div class="field-desc">가장 최근에 모델 학습이 완료된 날짜입니다. 이 날짜 이후에 추가된 실험 데이터는 아직 반영되지 않았습니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">신규 미반영 건수</div>
+        <div class="field-desc">마지막 학습 이후 새로 추가된 실험 건수입니다. 이 숫자가 50건 이상이면 재학습을 권장합니다.</div>
+      </li>
+    </ul>
+
+    <h3>자동 재학습 트리거 설정</h3>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">누적 건수 기준</div>
+        <div class="field-desc">신규 데이터가 이 숫자 이상 누적되면 자동으로 재학습이 실행됩니다. 기본값은 50건입니다. 실험 빈도에 따라 조정하세요.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">자동 재학습 활성화</div>
+        <div class="field-desc">체크박스로 자동 재학습 on/off를 설정합니다. 기본값은 활성화입니다.</div>
+      </li>
+    </ul>
+
+    <h3>수동 재학습 실행</h3>
+    <p>[지금 재학습 실행] 버튼을 누르면 즉시 202 응답이 반환되고 백그라운드에서 재학습이 시작됩니다.</p>
+
+    <div class="card">
+      <div class="card-title">⏱ 재학습 소요 시간 (Surface CPU 기준)</div>
+      <table>
+        <tr><th>단계</th><th>소요 시간</th><th>내용</th></tr>
+        <tr><td>Feature Engineering</td><td>~10초</td><td>파생 변수 생성 (energy_density 등)</td></tr>
+        <tr><td>Optuna 최적화</td><td>~3분</td><td>각 모델 100회 하이퍼파라미터 탐색 × 3개 모델</td></tr>
+        <tr><td>최종 학습</td><td>~30초</td><td>최적 파라미터로 XGBoost 학습</td></tr>
+        <tr><td>SHAP 계산</td><td>~20초</td><td>전체 데이터 SHAP 값 계산</td></tr>
+        <tr><td><strong>전체</strong></td><td><strong>약 5~10분</strong></td><td>데이터 건수에 따라 변동</td></tr>
+      </table>
+    </div>
+
+    <div class="alert alert-info">
+      <strong>재학습 중 운영:</strong> 재학습 중에도 기존 모델로 서비스는 정상 운영됩니다. 재학습 완료 후 자동으로 새 모델로 교체됩니다. 진행 상태는 [재학습 상태 확인]에서 폴링으로 확인할 수 있습니다.
+    </div>
+  </section>
+
+  <hr class="section">
+
+  <!-- 섹션 5: 판정 기준 -->
+  <section class="section-page" id="s5">
+    <h2>섹션 5 — 판정 기준 설정</h2>
+    <p>OK 판정 기준과 AI 탐색 공간을 변경하는 화면입니다. <strong>변경 즉시 전 Agent에 반영되며 감사 로그에 기록됩니다.</strong></p>
+
+    <div class="alert alert-danger">
+      <strong>최고 주의:</strong> 판정 기준 변경은 시스템 전체 동작에 영향을 미칩니다. 변경 전 반드시 고객사 품질 담당자와 협의하고, 변경 후 테스트를 통해 검증하세요.
+    </div>
+
+    <h3>Depth OK 범위</h3>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">OK 최솟값 (초과)</div>
+        <div class="field-desc">Depth가 이 값을 초과해야 OK 판정입니다. 기본값 0.0μm. 즉 Depth가 0이면 과가공(완전 관통)으로 판정됩니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">OK 최댓값 (이하)</div>
+        <div class="field-desc">Depth가 이 값 이하이어야 OK 판정입니다. 기본값 25.0μm. 고객사 품질 기준에 따라 조정합니다. 이 값을 낮추면 OK 조건이 더 엄격해집니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">이상값 플래그 기준</div>
+        <div class="field-desc">Thickness가 이 값을 초과하는 실험 데이터에 이상값 플래그를 표시합니다. 기본값 140.0μm.</div>
+      </li>
+    </ul>
+
+    <h3>탐색 공간 설정</h3>
+    <p>Bayesian Optimization이 탐색하는 파라미터 범위를 설정합니다.</p>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">Power 범위 (W)</div>
+        <div class="field-desc">최솟값과 최댓값 사이에서 Power를 연속적으로 탐색합니다. 기본값: 2.8W ~ 59.8W. 소재 특성에 따라 범위를 좁히면 탐색 효율이 높아집니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">Speed 선택지 (mm/s)</div>
+        <div class="field-desc">쉼표로 구분된 이산값 목록입니다. 기본값: 200, 500, 1000. 설비 사양에 맞는 값만 포함하세요.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">Defocus 선택지 (mm)</div>
+        <div class="field-desc">쉼표로 구분된 이산값 목록입니다. 기본값: 0, 1, 2, 3, 4. 설비에서 지원하는 값만 포함하세요.</div>
+      </li>
+    </ul>
+
+    <h3>버튼 설명</h3>
+    <table>
+      <tr><th>버튼</th><th>동작</th></tr>
+      <tr><td>변경사항 저장</td><td>.env 파일과 런타임 설정을 동시에 업데이트합니다. 감사 로그에 이전값→새값이 기록됩니다.</td></tr>
+      <tr><td>기본값으로 초기화</td><td>모든 설정을 시스템 기본값으로 되돌립니다. 초기화도 감사 로그에 기록됩니다.</td></tr>
+    </table>
+  </section>
+
+  <hr class="section">
+
+  <!-- 섹션 6: 사용자 관리 -->
+  <section class="section-page" id="s6">
+    <h2>섹션 6 — 사용자 관리</h2>
+    <p>운영자 계정을 생성·수정·삭제하는 화면입니다.</p>
+
+    <h3>사용자 역할</h3>
+    <table>
+      <tr><th>역할</th><th>권한</th></tr>
+      <tr><td><span class="badge badge-ok">관리자 (admin)</span></td><td>Admin Console 전체 접근, 설정 변경, 사용자 관리</td></tr>
+      <tr><td><span class="badge badge-info">운영자 (operator)</span></td><td>소재 입력, AI 제안 승인/거부, 결과 입력</td></tr>
+    </table>
+
+    <h3>신규 사용자 추가</h3>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body"><div class="step-title">[신규 추가] 버튼 클릭</div><div class="step-desc">모달 창이 열립니다.</div></div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body"><div class="step-title">이름, 역할, 비밀번호 입력</div><div class="step-desc">비밀번호는 8자 이상을 권장합니다. 역할은 operator 또는 admin 중 선택합니다.</div></div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body"><div class="step-title">[저장] 클릭</div><div class="step-desc">계정이 생성되고 목록에 나타납니다. 초기 비밀번호를 사용자에게 전달하세요.</div></div>
+    </div>
+  </section>
+
+  <hr class="section">
+
+  <!-- 섹션 7: 알림 설정 -->
+  <section class="section-page" id="s7">
+    <h2>섹션 7 — 알림 설정</h2>
+    <p>시스템 이벤트 발생 시 이메일과 Slack으로 알림을 보내는 설정입니다.</p>
+
+    <h3>이메일 알림 설정</h3>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">수신 주소</div>
+        <div class="field-desc">알림을 받을 이메일 주소입니다. 여러 명에게 보내려면 쉼표로 구분하세요.</div>
+      </li>
+    </ul>
+
+    <h3>Slack 알림 설정</h3>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">Webhook URL</div>
+        <div class="field-desc">Slack Incoming Webhook URL입니다. Slack 워크스페이스 > 앱 > Incoming Webhooks에서 생성하세요. 형식: https://hooks.slack.com/services/...</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">채널</div>
+        <div class="field-desc">알림을 받을 Slack 채널명입니다. # 포함하여 입력하세요. 예: #laser-ai-ades</div>
+      </li>
+    </ul>
+
+    <h3>알림 조건 설정</h3>
+    <table>
+      <tr><th>조건</th><th>발생 시점</th><th>권장 설정</th></tr>
+      <tr><td>OK 달성 시</td><td>Auto DOE에서 OK 판정이 나오고 레시피가 저장될 때</td><td>활성화 권장 (성공 추적)</td></tr>
+      <tr><td>서비스 장애 시</td><td>헬스체크에서 장애(빨강) 상태가 감지될 때</td><td>반드시 활성화</td></tr>
+      <tr><td>모델 성능 저하 시</td><td>재학습 후 depth R² &lt; 0.70 또는 OK F1 &lt; 0.50일 때</td><td>활성화 권장</td></tr>
+    </table>
+
+    <div class="alert alert-info">
+      <strong>[테스트 알림 전송]:</strong> 설정 저장 후 이 버튼으로 실제 이메일과 Slack에 테스트 메시지가 발송되는지 확인하세요. 알림이 오지 않으면 주소/URL을 재확인하세요.
+    </div>
+  </section>
+
+  <hr class="section">
+
+  <!-- 섹션 8: 감사 로그 -->
+  <section class="section-page" id="s8">
+    <h2>섹션 8 — 감사 로그</h2>
+    <p>모든 승인·거부·설정 변경·LLM 전환 이력을 확인하는 화면입니다. 최신순으로 표시되며 20건씩 페이지네이션됩니다.</p>
+
+    <h3>로그 컬럼 설명</h3>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">발생 시각</div>
+        <div class="field-desc">이벤트가 발생한 정확한 시각입니다. (예: 2025-06-11 14:32:05)</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">담당자</div>
+        <div class="field-desc">행동을 수행한 운영자 이름 또는 '시스템'(자동 실행 이벤트)입니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">유형 (action_type)</div>
+        <div class="field-desc">
+          <span class="badge badge-ok" style="margin-right:4px">approval</span> 운영자 승인<br>
+          <span class="badge badge-danger" style="margin-right:4px">rejection</span> 운영자 거부<br>
+          <span class="badge badge-info" style="margin-right:4px">llm_change</span> LLM 모델 전환<br>
+          <span class="badge badge-warn" style="margin-right:4px">setting_change</span> 판정 기준 변경<br>
+          <span class="badge badge-purple" style="margin-right:4px">retrain</span> 모델 재학습<br>
+          <span class="badge badge-laser" style="margin-right:4px">service_restart</span> 서비스 재시작
+        </div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">내용</div>
+        <div class="field-desc">이벤트 상세 내용입니다. 설정 변경의 경우 "이전값 → 새값" 형태로 표시됩니다.</div>
+      </li>
+    </ul>
+
+    <h3>CSV 내보내기</h3>
+    <p>[CSV 내보내기] 버튼으로 전체 감사 로그를 CSV 파일로 다운로드할 수 있습니다. 품질 감사나 문제 추적에 활용하세요.</p>
+  </section>
+
+  <hr class="section">
+
+  <!-- 섹션 9: 데이터 관리 -->
+  <section class="section-page" id="s9">
+    <h2>섹션 9 — 데이터 관리</h2>
+    <p>실험 데이터 백업, Excel 내보내기, 이상값 처리를 담당하는 화면입니다.</p>
+
+    <h3>DB 현황 패널</h3>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">experiments</div>
+        <div class="field-desc">전체 실험 데이터 건수입니다. 초기 POC 328건 + 실운영 누적 건수입니다. 이 숫자가 증가할수록 AI 정확도가 향상됩니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">recipes</div>
+        <div class="field-desc">저장된 레시피 수입니다. 소재 조합별로 최적 파라미터가 하나씩 저장됩니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">approvals</div>
+        <div class="field-desc">전체 승인/거부 이력 건수입니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">이상값 플래그</div>
+        <div class="field-desc">is_outlier=True로 표시된 실험 건수입니다. 클릭하면 해당 데이터를 검토할 수 있습니다.</div>
+      </li>
+    </ul>
+
+    <h3>백업 패널</h3>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">마지막 백업</div>
+        <div class="field-desc">가장 최근 자동 백업 완료 시각입니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">백업 주기</td>
+        <div class="field-desc">자동 백업 실행 주기입니다. 기본값: 매일 02:00</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">보관 기간</div>
+        <div class="field-desc">백업 파일 보관 기간입니다. 기본값: 30일. /data/backups/ 디렉토리에 저장됩니다.</div>
+      </li>
+    </ul>
+
+    <h3>버튼 설명</h3>
+    <table>
+      <tr><th>버튼</th><th>동작</th><th>주의사항</th></tr>
+      <tr><td>지금 백업</td><td>pg_dump로 ades_db 전체를 /data/backups/에 저장합니다. 타임스탬프가 파일명에 포함됩니다.</td><td>대용량 DB의 경우 수 분이 소요됩니다.</td></tr>
+      <tr><td>Excel 내보내기</td><td>experiments 테이블 전체를 CSV 파일로 다운로드합니다.</td><td>대용량의 경우 시간이 걸릴 수 있습니다.</td></tr>
+      <tr><td>이상값 검토</td><td>is_outlier=True인 데이터 목록을 표시합니다.</td><td>이상값을 수동으로 확인하고 학습 제외 여부를 결정하세요.</td></tr>
+    </table>
+  </section>
+
+  <hr class="section">
+
+  <!-- Grafana -->
+  <section class="section-page" id="monitoring">
+    <h2>Grafana 모니터링 대시보드</h2>
+    <p>접속 주소: <code style="background:var(--bg3);padding:2px 8px;border-radius:4px">http://localhost:3010</code> (초기 계정: admin / admin)</p>
+
+    <h3>AI-ADES Data Overview 대시보드</h3>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">품질 분포 파이 차트</div>
+        <div class="field-desc">전체 실험의 OK / 미가공 / 과가공 비율을 보여줍니다. OK 비율이 지속적으로 증가하면 AI 성능이 향상되고 있다는 신호입니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">Speed × Power 히트맵</div>
+        <div class="field-desc">Speed와 Power 조합별 판정 결과를 색상으로 표시합니다. 초록 구간이 OK 영역입니다. 히트맵에서 OK 구간을 시각적으로 파악할 수 있습니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">Defocus × Power 히트맵</div>
+        <div class="field-desc">Defocus와 Power 조합별 판정 결과입니다. 특정 Defocus 값에서 OK 구간이 넓은지 확인할 수 있습니다.</div>
+      </li>
+    </ul>
+
+    <h3>Model Performance 대시보드</h3>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">R² / F1 현황 패널</div>
+        <div class="field-desc">model_metrics 테이블의 최신값을 표시합니다. 재학습 후 성능 변화를 추적합니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">DOE 수렴 이력 그래프</div>
+        <div class="field-desc">각 Auto DOE 세션에서 몇 회 만에 OK에 수렴했는지 시계열로 표시합니다. 평균 수렴 횟수가 줄어들면 모델이 개선되고 있다는 의미입니다.</div>
+      </li>
+    </ul>
+  </section>
+
+  <hr class="section">
+
+  <!-- MLflow -->
+  <section class="section-page" id="mlflow">
+    <h2>MLflow 모델 실험 관리</h2>
+    <p>접속 주소: <code style="background:var(--bg3);padding:2px 8px;border-radius:4px">http://localhost:5000</code></p>
+    <p>모든 모델 학습 이력이 여기에 자동으로 기록됩니다.</p>
+
+    <h3>Experiment 구조</h3>
+    <ul class="field-list">
+      <li class="field-item">
+        <div class="field-name">ai-ades-laser-cutting</div>
+        <div class="field-desc">메인 실험 그룹입니다. 모든 학습 Run이 이 Experiment 아래에 기록됩니다.</div>
+      </li>
+      <li class="field-item">
+        <div class="field-name">Run (학습 이력)</div>
+        <div class="field-desc">kerf_model, depth_model, quality_model 각각 별도 Run으로 기록됩니다. 각 Run에는 하이퍼파라미터, R²/F1 메트릭, 모델 파일이 저장됩니다.</div>
+      </li>
+    </ul>
+
+    <h3>MLflow에서 확인할 것들</h3>
+    <table>
+      <tr><th>확인 항목</th><th>위치</th><th>활용</th></tr>
+      <tr><td>최고 성능 Run</td><td>Experiments → Sort by metric</td><td>어떤 하이퍼파라미터에서 최고 성능이 나왔는지 확인</td></tr>
+      <tr><td>R² 추이</td><td>Compare runs → depth_r2</td><td>재학습할수록 성능이 향상되는지 추적</td></tr>
+      <tr><td>Feature Importance</td><td>Artifacts → feature_importance.png</td><td>SHAP 분석 결과 시각화</td></tr>
+      <tr><td>모델 파일</td><td>Artifacts → *.pkl</td><td>특정 버전의 모델 복원에 사용</td></tr>
+    </table>
+  </section>
+
+  <hr class="section">
+
+  <!-- 정기 운영 체크리스트 -->
+  <section class="section-page" id="ops">
+    <h2>정기 운영 체크리스트</h2>
+
+    <div class="card">
+      <div class="card-title">📋 매일 확인 (출근 후 5분)</div>
+      <table>
+        <tr><th>항목</th><th>확인 방법</th><th>이상 시 조치</th></tr>
+        <tr><td>서비스 전체 정상</td><td>Admin Console → 시스템 상태</td><td>섹션 2에서 재시작</td></tr>
+        <tr><td>InfluxDB 응답시간</td><td>200ms 이하 확인</td><td>재시작 또는 관리자 에스컬레이션</td></tr>
+        <tr><td>Disk 사용량</td><td>80% 미만 확인</td><td>오래된 백업 파일 정리</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 매주 확인 (월요일 오전)</div>
+      <table>
+        <tr><th>항목</th><th>확인 방법</th><th>기준</th></tr>
+        <tr><td>신규 데이터 누적량</td><td>Admin Console → 모델 재학습</td><td>50건 이상 시 재학습</td></tr>
+        <tr><td>모델 성능</td><td>depth R², OK F1 확인</td><td>R² &lt; 0.70 또는 F1 &lt; 0.50 시 재학습</td></tr>
+        <tr><td>DB 백업 상태</td><td>Admin Console → 데이터 관리</td><td>최근 7일 내 백업 존재 확인</td></tr>
+        <tr><td>감사 로그 검토</td><td>Admin Console → 감사 로그</td><td>비정상 거부 패턴 여부 확인</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📋 HW 업그레이드 시 (필요 시)</div>
+      <table>
+        <tr><th>항목</th><th>조치</th></tr>
+        <tr><td>RAM 64GB+ 확보 시</td><td>ollama pull qwen2.5:14b → Admin Console LLM 전환</td></tr>
+        <tr><td>RAM 128GB+ 확보 시</td><td>ollama pull qwen2.5:32b → 전환 및 품질 비교</td></tr>
+        <tr><td>GPU 장착 시</td><td>.env GPU_ENABLED=true 변경 → docker-compose.prod.yml로 전환</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <hr class="section">
+
+  <!-- 장애 대응 -->
+  <section class="section-page" id="trouble">
+    <h2>장애 대응 가이드</h2>
+
+    <div class="card">
+      <div class="card-title">🚨 장애 유형별 대응</div>
+      <table>
+        <tr><th>증상</th><th>원인 파악</th><th>조치</th></tr>
+        <tr>
+          <td>운영자 화면 접속 불가</td>
+          <td><code>curl http://localhost:5173/health</code> 확인</td>
+          <td>frontend 컨테이너 재시작: <code>docker-compose restart frontend</code></td>
+        </tr>
+        <tr>
+          <td>AI 제안이 안 나옴</td>
+          <td>execution-agent 로그 확인</td>
+          <td>execution-agent 재시작 (터미널에서 직접)</td>
+        </tr>
+        <tr>
+          <td>LLM 설명만 안 나옴 (나머지 정상)</td>
+          <td>Ollama 상태 확인: <code>ollama list</code></td>
+          <td>Ollama 재시작 또는 Admin Console에서 모델 재전환</td></tr>
+        <tr>
+          <td>모델 재학습 실패</td>
+          <td>MLflow에서 실패한 Run 로그 확인</td>
+          <td>modeling-agent 재시작 후 재시도. 지속 시 개발팀 문의</td>
+        </tr>
+        <tr>
+          <td>Grafana 데이터 없음</td>
+          <td>InfluxDB 연결 상태 확인</td>
+          <td>InfluxDB 재시작 후 Grafana 데이터소스 재연결</td>
+        </tr>
+        <tr>
+          <td>DB 연결 오류</td>
+          <td><code>docker ps | grep postgres</code> 확인</td>
+          <td>pm-postgres 컨테이너 상태 확인 및 재시작</td>
+        </tr>
+      </table>
+    </div>
+
+    <h3>긴급 복구 절차</h3>
+    <div class="cmd">
+<span class="c"># 1. 전체 서비스 상태 확인</span>
+docker-compose ps
+
+<span class="c"># 2. 문제 서비스 로그 확인</span>
+docker-compose logs --tail=50 <span class="n">execution-agent</span>
+
+<span class="c"># 3. 전체 재시작 (최후 수단)</span>
+docker-compose down
+docker-compose up -d
+
+<span class="c"># 4. DB 연결 확인</span>
+docker exec -it pm-postgres psql -U ades -d ades_db -c <span class="s">"\dt"</span>
+
+<span class="c"># 5. 최근 백업으로 복구 (데이터 손실 시)</span>
+ls -la data/backups/
+docker exec -i pm-postgres psql -U ades -d ades_db &lt; data/backups/<span class="n">backup_날짜.sql</span>
+    </div>
+
+    <div class="faq" onclick="toggleFaq(this)">
+      <div class="faq-q">판정 기준을 잘못 변경했을 때 어떻게 원복하나요? <span class="faq-icon">›</span></div>
+      <div class="faq-a">Admin Console → 판정 기준 설정 → [기본값으로 초기화] 버튼을 누르세요. 또는 직접 DEPTH_OK_MIN=0.0, DEPTH_OK_MAX=25.0으로 입력하고 저장하세요. 모든 변경 이력은 감사 로그에 남아 있습니다.</div>
+    </div>
+    <div class="faq" onclick="toggleFaq(this)">
+      <div class="faq-q">모델 성능이 갑자기 낮아졌을 때 어떻게 하나요? <span class="faq-icon">›</span></div>
+      <div class="faq-a">MLflow에서 이전 학습 Run을 확인하고 성능이 좋았던 시점의 모델 파일(.pkl)을 /services/modeling-agent/models/에 복사하세요. 그 후 modeling-agent를 재시작하면 이전 모델로 복구됩니다.</div>
+    </div>
+    <div class="faq" onclick="toggleFaq(this)">
+      <div class="faq-q">실험 데이터를 실수로 삭제했을 때 어떻게 하나요? <span class="faq-icon">›</span></div>
+      <div class="faq-a">Admin Console → 데이터 관리 → 백업 파일 목록에서 가장 최근 백업을 확인하세요. 터미널에서 psql로 백업 파일을 복구하면 됩니다. 백업이 매일 자동으로 실행되므로 최대 1일치 데이터 손실이 발생할 수 있습니다.</div>
+    </div>
+
+    <div style="margin-top:40px;padding:20px;background:var(--bg3);border-radius:var(--radius);text-align:center;color:var(--muted);font-size:13px">
+      AI-ADES 관리자 매뉴얼 v1.0 · Phase 0~4 완료 기준 · 운영자 매뉴얼은 별도 파일 참조
+    </div>
+  </section>
+
+</main>
+</div>
+
+<script>
+function setActive(el) {
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+}
+function toggleFaq(el) { el.classList.toggle('open'); }
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const id = e.target.id;
+      document.querySelectorAll('.sb-item').forEach(i => {
+        i.classList.toggle('active', i.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { threshold: 0.25 });
+document.querySelectorAll('section[id]').forEach(s => obs.observe(s));
+</script>
+</body>
+</html>

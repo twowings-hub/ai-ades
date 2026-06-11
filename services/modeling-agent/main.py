@@ -10,6 +10,7 @@ import os
 import joblib
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from feature_engineering import (
@@ -31,6 +32,14 @@ from xgboost_pipeline import (
 load_dotenv()
 
 app = FastAPI(title="AI-ADES Modeling Agent")
+
+# 프론트엔드(Vite 개발 서버)에서의 직접 호출 허용
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.getenv("CORS_ALLOW_ORIGINS", "http://localhost:5173").split(","),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 PORT = int(os.getenv("MODELING_PORT", 8011))
 MODELS_DIR = os.path.join(os.path.dirname(__file__), "models")

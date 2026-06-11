@@ -16,7 +16,8 @@ SHAP 분석: {shap_dict}
 예측 결과: Depth={pred_depth}μm, 판정={pred_quality}
 
 운영자에게 OK 달성을 위한 파라미터 조정 방향을
-2~3문장으로 설명해주세요."""
+2~3문장으로 설명해주세요.
+반드시 한국어로만 답변하고, 한자나 중국어, 영어 단어를 섞지 마세요."""
 
 
 def _build_prompt(context: dict) -> str:

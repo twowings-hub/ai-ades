@@ -138,6 +138,12 @@ services:
     container_name: ades-execution-agent
     restart: unless-stopped
     env_file: .env
+    environment:
+      ENV_FILE_PATH: /app/.env
+      BACKUP_DIR: /app/backups
+    volumes:
+      - ./.env:/app/.env
+      - ./data/backups:/app/backups
     ports:
       - "${EXECUTION_PORT:-8012}:8012"
     networks:
