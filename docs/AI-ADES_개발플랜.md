@@ -2,7 +2,7 @@
 ## AI Autonomous Data Evaluation System — 개발 착수 전 검토용
 
 > **작성일**: 2025년 6월 (PPT + Excel 완전 분석 기반)
-> **개발 장비**: MS Surface Laptop Studio 1 (RAM 32GB, GPU 없음)
+> **개발 장비**: MS Surface Laptop Studio 1 (RAM 32GB, NVIDIA GeForce RTX 3050 Ti Laptop GPU 탑재)
 > **기존 환경**: rag-pm-matcher (Docker / Ollama / Qwen·Claude·ChatGPT / Qdrant / PostgreSQL)
 > **개발 착수**: 본 플랜 검토 및 착수 지시 후 시작
 
@@ -619,7 +619,7 @@ QUALITY_TARGET=OK
 DEPTH_OK_MIN=0.0               # μm (초과)
 DEPTH_OK_MAX=25.0              # μm (이하)
 ENV=development
-GPU_ENABLED=false              # Surface: false, 고객사: true
+GPU_ENABLED=false              # Surface: GPU(RTX 3050 Ti) 탑재되어 있으나 개발 단계는 false, 고객사: true
 ```
 
 ---
