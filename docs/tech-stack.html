@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-ADES — 기술 스택</title>
+<style>
+:root {
+  --laser:   #00C4FF;
+  --ok:      #00E5A0;
+  --warn:    #FF8C42;
+  --danger:  #FF4D6D;
+  --future:  #A88BFA;
+  --bg:      #070B12;
+  --bg2:     #0D1420;
+  --bg3:     #131D2E;
+  --border:  rgba(0,196,255,0.15);
+  --text:    #E8EDF5;
+  --muted:   #7A8BA0;
+
+  --font-display: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --transition: 0.25s cubic-bezier(.4,0,.2,1);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--font-display);
+  font-size: 15px; line-height: 1.7; -webkit-font-smoothing: antialiased;
+}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── 네비게이션 ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(7,11,18,0.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 40px; height: 56px; gap: 8px;
+}
+.nav-logo { font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: var(--laser); text-transform: uppercase; margin-right: auto; white-space: nowrap; }
+nav a { color: var(--muted); text-decoration: none; font-size: 13px; padding: 6px 12px; border-radius: var(--radius-sm); transition: color var(--transition), background var(--transition); white-space: nowrap; }
+nav a:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+nav a.active { color: var(--laser); }
+
+/* ── 히어로 ── */
+.hero { min-height: 64vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 120px 40px 60px; position: relative; overflow: hidden; }
+.hero-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(0,196,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,196,255,0.04) 1px, transparent 1px); background-size: 60px 60px; mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 40%, transparent 100%); }
+.hero-tag { display: inline-block; border: 1px solid rgba(0,196,255,0.4); color: var(--laser); font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; padding: 5px 16px; border-radius: 100px; margin-bottom: 28px; background: rgba(0,196,255,0.06); }
+.hero h1 { font-size: clamp(2.0rem, 4.6vw, 3.2rem); font-weight: 800; line-height: 1.2; letter-spacing: -0.02em; margin-bottom: 20px; }
+.hero h1 span { color: var(--laser); }
+.hero-sub { font-size: clamp(1rem, 2vw, 1.1rem); color: var(--muted); max-width: 700px; margin: 0 auto 16px; }
+.hero-meta { font-size: 12px; color: #3A4A5A; font-family: var(--font-mono); }
+
+/* ── 섹션 공통 ── */
+section { padding: 90px 40px; max-width: 1100px; margin: 0 auto; }
+.section-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--laser); margin-bottom: 12px; }
+.section-title { font-size: clamp(1.6rem, 3vw, 2.2rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 16px; line-height: 1.2; }
+.section-desc { color: var(--muted); font-size: 1rem; max-width: 680px; margin-bottom: 48px; }
+.divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 0; }
+
+/* ── 인프라 그리드 ── */
+.arch-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.arch-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 24px; transition: border-color var(--transition), transform var(--transition); }
+.arch-card:hover { border-color: rgba(0,196,255,0.35); transform: translateY(-2px); }
+.arch-port { font-family: var(--font-mono); font-size: 11px; color: var(--laser); font-weight: 600; background: rgba(0,196,255,0.08); border: 1px solid rgba(0,196,255,0.2); padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 12px; }
+.arch-name { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.arch-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+/* ── 서비스 카드 ── */
+.service-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px 32px; margin-bottom: 24px; }
+.service-card:last-child { margin-bottom: 0; }
+.service-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.service-port { font-family: var(--font-mono); font-size: 11px; color: var(--laser); background: rgba(0,196,255,0.08); border: 1px solid rgba(0,196,255,0.2); padding: 2px 10px; border-radius: 100px; }
+.service-name { font-size: 17px; font-weight: 800; }
+.service-desc { font-size: 13px; color: var(--muted); margin-bottom: 16px; }
+
+/* ── 라이브러리 태그 ── */
+.lib-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.lib-tag {
+  font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em;
+  padding: 5px 12px; border-radius: 100px;
+  background: rgba(0,196,255,0.06); border: 1px solid rgba(0,196,255,0.2);
+  color: var(--text); font-family: var(--font-mono);
+  display: flex; align-items: center; gap: 6px;
+}
+.lib-tag .ver { color: var(--muted); font-size: 10.5px; }
+.lib-tag.new { background: rgba(168,139,250,0.1); border-color: rgba(168,139,250,0.4); color: var(--future); }
+.lib-tag.new .ver { color: var(--future); opacity: 0.8; }
+.new-badge {
+  font-size: 9.5px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase;
+  background: var(--future); color: #1A0F33; padding: 1px 6px; border-radius: 4px; margin-left: 2px;
+}
+
+/* ── 신규 모듈 박스 ── */
+.module-box {
+  margin-top: 18px; padding: 16px 20px;
+  background: rgba(168,139,250,0.05); border: 1px dashed rgba(168,139,250,0.35);
+  border-radius: var(--radius-md); font-size: 13px; line-height: 1.8;
+}
+.module-box .title { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--future); margin-bottom: 8px; }
+.module-box code { font-family: var(--font-mono); color: var(--laser); background: rgba(0,196,255,0.08); padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+.module-box .note { color: var(--muted); margin-top: 8px; font-size: 12px; }
+
+/* ── 변경 이력 표 ── */
+.change-table { width: 100%; border-collapse: collapse; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; font-size: 13px; }
+.change-table th, .change-table td { padding: 14px 18px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: top; }
+.change-table th { background: var(--bg3); color: var(--laser); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 700; }
+.change-table tr:last-child td { border-bottom: none; }
+.change-table td.area { font-weight: 700; color: var(--text); white-space: nowrap; }
+.change-table td.before { color: var(--muted); }
+.change-table td.after { color: var(--ok); }
+
+/* ── 환경 정보 카드 ── */
+.env-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr)); gap: 16px; }
+.env-card { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 20px 22px; }
+.env-card .k { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--laser); margin-bottom: 8px; }
+.env-card .v { font-size: 13px; color: var(--text); line-height: 1.6; }
+.env-card .v .muted { color: var(--muted); }
+
+footer { background: var(--bg2); border-top: 1px solid var(--border); padding: 48px 40px; text-align: center; }
+.footer-logo { font-size: 18px; font-weight: 800; color: var(--laser); margin-bottom: 8px; }
+.footer-desc { font-size: 13px; color: var(--muted); }
+
+@media (max-width: 768px) {
+  nav { padding: 0 20px; }
+  nav a { display: none; }
+  section { padding: 50px 20px; }
+  .arch-grid { grid-template-columns: 1fr; }
+  .change-table { font-size: 12px; }
+  .change-table th, .change-table td { padding: 10px 12px; }
+}
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+.fade-up { animation: fadeUp 0.6s ease both; }
+.fade-up-2 { animation: fadeUp 0.6s 0.15s ease both; }
+.fade-up-3 { animation: fadeUp 0.6s 0.3s ease both; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">AI-ADES · Tech Stack</div>
+  <a href="#infra">인프라</a>
+  <a href="#backend">백엔드 서비스</a>
+  <a href="#frontend">프론트엔드</a>
+  <a href="#env">개발 환경</a>
+  <a href="#changes">변경 요약</a>
+</nav>
+
+<div class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-tag fade-up">System Tech Stack</div>
+  <h1 class="fade-up-2">AI-ADES를 구성하는<br><span>기술 스택 한눈에 보기</span></h1>
+  <p class="hero-sub fade-up-3">
+    인프라, 백엔드 3개 서비스, 프론트엔드, 개발 환경까지 — 현재 사용 중인 라이브러리와
+    Phase 6에서 새로 추가된 항목(<span style="color:var(--future);font-weight:700;">보라색</span>)을 정리합니다.
+  </p>
+  <div class="hero-meta fade-up-3">최종 갱신: 2026-06-11 · Phase 6 사전 준비 반영</div>
+</div>
+
+<div class="divider"></div>
+
+<!-- 인프라 -->
+<section id="infra">
+  <div class="section-eyebrow">인프라</div>
+  <h2 class="section-title">공유 컨테이너 + AI-ADES 전용 인프라</h2>
+  <p class="section-desc">
+    PostgreSQL/Qdrant/Ollama는 기존 rag-pm-matcher 컨테이너를 그대로 공유하고,
+    나머지는 AI-ADES 전용으로 새로 띄웁니다.
+  </p>
+
+  <div class="arch-grid">
+    <div class="arch-card">
+      <div class="arch-port">5432 (내부)</div>
+      <div class="arch-name">PostgreSQL <span style="color:var(--muted);font-weight:400;">(공유)</span></div>
+      <div class="arch-desc">pm-postgres 컨테이너 공유, ades_db 스키마로 분리. experiments/recipes/plasma_timeseries/model_metrics 등.</div>
+    </div>
+    <div class="arch-card">
+      <div class="arch-port">6333</div>
+      <div class="arch-name">Qdrant <span style="color:var(--muted);font-weight:400;">(공유)</span></div>
+      <div class="arch-desc">ades_ 접두사 컬렉션으로 분리해 사용.</div>
+    </div>
+    <div class="arch-card">
+      <div class="arch-port">11434</div>
+      <div class="arch-name">Ollama <span style="color:var(--muted);font-weight:400;">(공유)</span></div>
+      <div class="arch-desc">로컬 LLM 추론. 현재 qwen2.5:7b-instruct 사용.</div>
+    </div>
+    <div class="arch-card">
+      <div class="arch-port">8086</div>
+      <div class="arch-name">InfluxDB 2.7</div>
+      <div class="arch-desc">실험 결과 + Plasma 센서 시계열 데이터 저장.</div>
+    </div>
+    <div class="arch-card">
+      <div class="arch-port">5000</div>
+      <div class="arch-name">MLflow 2.17.2</div>
+      <div class="arch-desc">XGBoost + PyTorch(LSTM-Autoencoder) 실험/모델 버전 관리.</div>
+    </div>
+    <div class="arch-card">
+      <div class="arch-port">3010</div>
+      <div class="arch-name">Grafana 11.3.0</div>
+      <div class="arch-desc">실시간 모니터링 대시보드 (포트 3002 사용 금지).</div>
+    </div>
+    <div class="arch-card">
+      <div class="arch-port">9092</div>
+      <div class="arch-name">Kafka 3.7.0</div>
+      <div class="arch-desc">내부 전용, 호스트 미노출. Phase 6 실시간 스트리밍 대비.</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 백엔드 서비스 -->
+<section id="backend">
+  <div class="section-eyebrow">백엔드 서비스</div>
+  <h2 class="section-title">3개 FastAPI 서비스의 라이브러리 구성</h2>
+  <p class="section-desc">
+    각 서비스가 사용하는 주요 라이브러리입니다. <span style="color:var(--future);font-weight:700;">보라색 태그</span>는
+    Phase 6에서 새로 추가된 항목입니다.
+  </p>
+
+  <!-- data-prep-agent -->
+  <div class="service-card">
+    <div class="service-head">
+      <span class="service-port">:8010</span>
+      <span class="service-name">data-prep-agent</span>
+    </div>
+    <div class="service-desc">Excel / Plasma ZIP 업로드 → 파싱 · 전처리 → PostgreSQL + InfluxDB 적재</div>
+    <div class="lib-tags">
+      <span class="lib-tag">fastapi <span class="ver">0.115.6</span></span>
+      <span class="lib-tag">uvicorn[standard] <span class="ver">0.32.1</span></span>
+      <span class="lib-tag">pandas <span class="ver">2.2.3</span></span>
+      <span class="lib-tag">openpyxl <span class="ver">3.1.5</span></span>
+      <span class="lib-tag">psycopg2-binary <span class="ver">2.9.10</span></span>
+      <span class="lib-tag">influxdb-client <span class="ver">1.48.0</span></span>
+      <span class="lib-tag">python-dotenv <span class="ver">1.0.1</span></span>
+      <span class="lib-tag">python-multipart <span class="ver">0.0.20</span></span>
+      <span class="lib-tag new">requests <span class="ver">2.32.3</span><span class="new-badge">NEW</span></span>
+    </div>
+    <div class="module-box">
+      <div class="title">Phase 6 신규 모듈</div>
+      <code>plasma_parser.py</code> — Plasma ZIP(세미콜론 CSV) → long-format 변환<br>
+      <code>plasma_loader.py</code> — <code>plasma_timeseries</code> 테이블 벌크 적재, exp_no 매칭
+      <div class="note">requests는 실험 적재 후 execution-agent의 자동 재학습 점검 API를 호출하는 데 사용됩니다.</div>
+    </div>
+  </div>
+
+  <!-- modeling-agent -->
+  <div class="service-card">
+    <div class="service-head">
+      <span class="service-port">:8011</span>
+      <span class="service-name">modeling-agent</span>
+    </div>
+    <div class="service-desc">XGBoost 품질 예측 모델 학습/예측 + LSTM-Autoencoder 이상감지 골격</div>
+    <div class="lib-tags">
+      <span class="lib-tag">numpy <span class="ver">1.26.4</span></span>
+      <span class="lib-tag">fastapi <span class="ver">0.115.6</span></span>
+      <span class="lib-tag">uvicorn[standard] <span class="ver">0.32.1</span></span>
+      <span class="lib-tag">pandas <span class="ver">2.2.3</span></span>
+      <span class="lib-tag">psycopg2-binary <span class="ver">2.9.10</span></span>
+      <span class="lib-tag">scikit-learn <span class="ver">1.5.2</span></span>
+      <span class="lib-tag">xgboost <span class="ver">2.1.3</span></span>
+      <span class="lib-tag">shap <span class="ver">0.46.0</span></span>
+      <span class="lib-tag">optuna <span class="ver">4.1.0</span></span>
+      <span class="lib-tag">mlflow <span class="ver">2.17.2</span></span>
+      <span class="lib-tag">joblib <span class="ver">1.4.2</span></span>
+      <span class="lib-tag">matplotlib <span class="ver">3.9.3</span></span>
+      <span class="lib-tag">requests <span class="ver">2.32.3</span></span>
+      <span class="lib-tag">anthropic <span class="ver">0.40.0</span></span>
+      <span class="lib-tag">openai <span class="ver">1.57.0</span></span>
+      <span class="lib-tag new">torch <span class="ver">2.5.1 (CPU)</span><span class="new-badge">NEW</span></span>
+    </div>
+    <div class="module-box">
+      <div class="title">Phase 6 신규 모듈</div>
+      <code>plasma_data.py</code> — long→wide 피벗, M1/M2/Blank 구간 분리 (현재 3등분 placeholder)<br>
+      <code>lstm_model.py</code> — LSTMAutoencoder, 슬라이딩 윈도우, 학습/복원오차/이상판정<br>
+      <code>mlflow_tracker.log_anomaly_model_run()</code> — PyTorch 모델 전용 MLflow 기록 함수
+      <div class="note">torch는 <code>--extra-index-url https://download.pytorch.org/whl/cpu</code>로 설치되는 CPU 전용 빌드입니다. 개발 PC(RTX 3050 Ti)는 현재 GPU_ENABLED=false로 CPU 모드 운영 중입니다.</div>
+    </div>
+  </div>
+
+  <!-- execution-agent -->
+  <div class="service-card">
+    <div class="service-head">
+      <span class="service-port">:8012</span>
+      <span class="service-name">execution-agent</span>
+    </div>
+    <div class="service-desc">Bayesian Optimization Auto DOE, 승인 워크플로우, 레시피, Admin Console, 자동 재학습 트리거</div>
+    <div class="lib-tags">
+      <span class="lib-tag">numpy <span class="ver">1.26.4</span></span>
+      <span class="lib-tag">fastapi <span class="ver">0.115.6</span></span>
+      <span class="lib-tag">uvicorn[standard] <span class="ver">0.32.1</span></span>
+      <span class="lib-tag">pandas <span class="ver">2.2.3</span></span>
+      <span class="lib-tag">psycopg2-binary <span class="ver">2.9.10</span></span>
+      <span class="lib-tag">anthropic <span class="ver">0.40.0</span></span>
+      <span class="lib-tag">openai <span class="ver">1.57.0</span></span>
+      <span class="lib-tag">gpytorch <span class="ver">1.13</span></span>
+      <span class="lib-tag">botorch <span class="ver">0.12.0</span></span>
+      <span class="lib-tag">psutil <span class="ver">6.1.0</span></span>
+    </div>
+    <div class="module-box">
+      <div class="title">Phase 6 변경</div>
+      <code>admin.check_and_trigger_retrain()</code> — 누적 실험 건수 기반 경량 자동 재학습 트리거 (<code>AUTO_RETRAIN_THRESHOLD</code>, 기본 50건)<br>
+      <code>/doe/result</code> — 결과 적재 후 자동 재학습 조건 점검 호출 추가
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 프론트엔드 -->
+<section id="frontend">
+  <div class="section-eyebrow">프론트엔드</div>
+  <h2 class="section-title">React + Vite — Docker 구성 추가</h2>
+  <p class="section-desc">
+    이전에는 docker-compose에 <code style="font-family:var(--font-mono);color:var(--laser);">build: ./frontend</code>만
+    정의되어 있고 Dockerfile이 없어 실제 빌드가 불가능했습니다. 이번에 Docker 구성을 완성했습니다.
+  </p>
+
+  <div class="env-grid">
+    <div class="env-card">
+      <div class="k">React + Vite (:5173)</div>
+      <div class="v">운영자 UI — ExperimentPage / ApprovalPage / ResultPage / AdminPage(9개 섹션)</div>
+    </div>
+    <div class="env-card">
+      <div class="k">frontend/Dockerfile <span class="new-badge">NEW</span></div>
+      <div class="v"><code style="font-family:var(--font-mono);color:var(--laser);">node:20-alpine</code> 기반,
+      <span class="muted">npm install → npm run dev -- --host</span></div>
+    </div>
+    <div class="env-card">
+      <div class="k">frontend/.dockerignore <span class="new-badge">NEW</span></div>
+      <div class="v"><span class="muted">node_modules, dist 제외</span></div>
+    </div>
+    <div class="env-card">
+      <div class="k">docker-compose volumes <span class="new-badge">NEW</span></div>
+      <div class="v"><span class="muted">./frontend:/app + /app/node_modules</span> — 소스 변경 시 재빌드 없이 즉시 반영(HMR)</div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 개발 환경 -->
+<section id="env">
+  <div class="section-eyebrow">개발 환경</div>
+  <h2 class="section-title">개발 장비 사양</h2>
+
+  <div class="env-grid">
+    <div class="env-card">
+      <div class="k">개발 장비</div>
+      <div class="v">MS Surface Laptop Studio 1<br><span class="muted">RAM 32GB</span></div>
+    </div>
+    <div class="env-card">
+      <div class="k">GPU</div>
+      <div class="v">NVIDIA GeForce RTX 3050 Ti Laptop GPU 탑재<br><span class="muted">(이전 문서에 "GPU 없음"으로 잘못 기재 — 정정 완료)</span></div>
+    </div>
+    <div class="env-card">
+      <div class="k">GPU_ENABLED</div>
+      <div class="v"><span class="muted">false</span> (개발 단계, CPU 모드) → 고객사 설치 시 <span style="color:var(--ok);">true</span> 전환 예정</div>
+    </div>
+    <div class="env-card">
+      <div class="k">컨테이너 소스 마운트</div>
+      <div class="v">data-prep / modeling / execution-agent: <span class="muted">없음 (이미지 재빌드 필요)</span><br>frontend: <span style="color:var(--ok);">있음 (핫리로드)</span></div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 변경 요약 -->
+<section id="changes">
+  <div class="section-eyebrow">변경 요약</div>
+  <h2 class="section-title">Phase 6 사전 준비 — 기술 스택 변경 이력</h2>
+  <p class="section-desc">기존 ARCHITECTURE.md 기준 대비 변경된 항목입니다.</p>
+
+  <table class="change-table">
+    <thead>
+      <tr><th>영역</th><th>변경 전</th><th>변경 후</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="area">개발 PC GPU 사양</td>
+        <td class="before">"GPU 없음"으로 잘못 기재</td>
+        <td class="after">RTX 3050 Ti 탑재 확인, 문서 정정</td>
+      </tr>
+      <tr>
+        <td class="area">Plasma 센서 데이터</td>
+        <td class="before">DB 적재 경로 없음</td>
+        <td class="after">ZIP 업로드 → plasma_timeseries 적재 (plasma_parser.py, plasma_loader.py)</td>
+      </tr>
+      <tr>
+        <td class="area">이상감지 모델</td>
+        <td class="before">없음</td>
+        <td class="after">LSTM-Autoencoder 골격 추가 (lstm_model.py, plasma_data.py, torch 2.5.1)</td>
+      </tr>
+      <tr>
+        <td class="area">모델 재학습</td>
+        <td class="before">수동 트리거만 존재</td>
+        <td class="after">누적 실험 건수 기반 경량 자동 재학습 트리거 추가</td>
+      </tr>
+      <tr>
+        <td class="area">frontend Docker화</td>
+        <td class="before">build: ./frontend만 정의 (빌드 불가)</td>
+        <td class="after">Dockerfile / .dockerignore / 볼륨 마운트 추가, 정상 빌드·핫리로드</td>
+      </tr>
+      <tr>
+        <td class="area">model_metrics 스키마</td>
+        <td class="before">n_experiments 컬럼 없음</td>
+        <td class="after">n_experiments 컬럼 추가 (자동 재학습 비교 기준)</td>
+      </tr>
+      <tr>
+        <td class="area">data-prep-agent 라이브러리</td>
+        <td class="before">requests 없음</td>
+        <td class="after">requests 2.32.3 추가 (자동 재학습 호출용)</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<footer>
+  <div class="footer-logo">AI-ADES</div>
+  <div class="footer-desc">AI Autonomous Data Evaluation System — 기술 스택 문서</div>
+  <div style="margin-top:16px;font-size:12px;color:#3A4A5A;">
+    원본: docs/TECH_STACK.md | Phase 6 사전 준비 기준
+  </div>
+</footer>
+
+<script>
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('nav a');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navLinks.forEach(link => {
+        link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id);
+      });
+    }
+  });
+}, { threshold: 0.3 });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

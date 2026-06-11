@@ -5,6 +5,7 @@ import ExperimentPage from './pages/ExperimentPage'
 import ApprovalPage from './pages/ApprovalPage'
 import ResultPage from './pages/ResultPage'
 import AdminPage from './pages/AdminPage'
+import RecipeSearchPage from './pages/RecipeSearchPage'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
             <Route path="/approval" element={<ApprovalPage />} />
             <Route path="/result" element={<ResultPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/recipes" element={<RecipeSearchPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

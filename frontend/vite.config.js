@@ -7,5 +7,10 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    watch: {
+      // Windows + Docker 바인드 마운트에서 파일 변경 감지가 누락되는 문제 보완
+      usePolling: true,
+      interval: 300,
+    },
   },
 })

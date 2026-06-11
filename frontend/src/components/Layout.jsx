@@ -33,6 +33,9 @@ export default function Layout() {
           <NavLink to="/result" style={navStyle}>
             결과 보고
           </NavLink>
+          <NavLink to="/recipes" style={navStyle}>
+            레시피 조회
+          </NavLink>
           <NavLink to="/admin" style={navStyle}>
             관리자
           </NavLink>

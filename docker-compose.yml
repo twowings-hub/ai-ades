@@ -160,6 +160,9 @@ services:
     env_file: .env
     ports:
       - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     networks:
       - ai-internal
     profiles: ["agents"]

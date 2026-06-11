@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-ADES Phase 6 — 사전 준비 작업 안내</title>
+<style>
+:root {
+  --laser:   #00C4FF;
+  --ok:      #00E5A0;
+  --warn:    #FF8C42;
+  --danger:  #FF4D6D;
+  --future:  #A88BFA;
+  --bg:      #070B12;
+  --bg2:     #0D1420;
+  --bg3:     #131D2E;
+  --border:  rgba(0,196,255,0.15);
+  --text:    #E8EDF5;
+  --muted:   #7A8BA0;
+  --white:   #FFFFFF;
+
+  --font-display: 'Pretendard', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+  --font-mono:    'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --transition: 0.25s cubic-bezier(.4,0,.2,1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: 15px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── 네비게이션 ── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: rgba(7,11,18,0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 40px; height: 56px; gap: 8px;
+}
+.nav-logo {
+  font-size: 13px; font-weight: 700; letter-spacing: 0.12em;
+  color: var(--laser); text-transform: uppercase; margin-right: auto;
+  white-space: nowrap;
+}
+nav a {
+  color: var(--muted); text-decoration: none; font-size: 13px;
+  padding: 6px 12px; border-radius: var(--radius-sm);
+  transition: color var(--transition), background var(--transition);
+  white-space: nowrap;
+}
+nav a:hover { color: var(--text); background: rgba(255,255,255,0.06); }
+nav a.active { color: var(--laser); }
+
+/* ── 히어로 ── */
+.hero {
+  min-height: 80vh;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  text-align: center;
+  padding: 120px 40px 80px;
+  position: relative; overflow: hidden;
+}
+.hero-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(0,196,255,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,196,255,0.04) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black 40%, transparent 100%);
+}
+.hero-tag {
+  display: inline-block;
+  border: 1px solid rgba(0,196,255,0.4);
+  color: var(--laser); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  padding: 5px 16px; border-radius: 100px;
+  margin-bottom: 28px;
+  background: rgba(0,196,255,0.06);
+}
+.hero h1 {
+  font-size: clamp(2.0rem, 4.6vw, 3.4rem);
+  font-weight: 800; line-height: 1.2;
+  letter-spacing: -0.02em;
+  margin-bottom: 20px;
+}
+.hero h1 span { color: var(--laser); }
+.hero-sub {
+  font-size: clamp(1rem, 2vw, 1.15rem);
+  color: var(--muted); max-width: 700px; margin: 0 auto 48px;
+}
+.hero-stats { display: flex; gap: 48px; justify-content: center; flex-wrap: wrap; }
+.stat { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.stat-num {
+  font-size: 2.2rem; font-weight: 800;
+  color: var(--ok); letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+.stat-label { font-size: 12px; color: var(--muted); }
+
+/* ── 섹션 공통 ── */
+section { padding: 100px 40px; max-width: 1100px; margin: 0 auto; }
+.section-eyebrow {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--laser);
+  margin-bottom: 12px;
+}
+.section-title {
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 800; letter-spacing: -0.02em;
+  margin-bottom: 16px; line-height: 1.2;
+}
+.section-desc { color: var(--muted); font-size: 1rem; max-width: 680px; margin-bottom: 56px; }
+.divider { height: 1px; background: linear-gradient(90deg, transparent, var(--border), transparent); margin: 0; }
+
+/* ── 타임라인 ── */
+.timeline { position: relative; }
+.tl-step { display: grid; grid-template-columns: 72px 1fr; gap: 0 32px; position: relative; }
+.tl-left { display: flex; flex-direction: column; align-items: center; padding-top: 6px; }
+.tl-num {
+  width: 44px; height: 44px; border-radius: 50%;
+  background: var(--bg2); border: 2px solid var(--laser);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800; color: var(--laser);
+  flex-shrink: 0; z-index: 1;
+  box-shadow: 0 0 16px rgba(0,196,255,0.2);
+}
+.tl-line {
+  width: 2px; flex: 1;
+  background: linear-gradient(to bottom, rgba(0,196,255,0.3), rgba(0,196,255,0.05));
+  margin-top: 8px; min-height: 40px;
+}
+.tl-content { padding-bottom: 56px; }
+.tl-step:last-child .tl-line { display: none; }
+.tl-step:last-child .tl-content { padding-bottom: 0; }
+.tl-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--laser); margin-bottom: 6px;
+}
+.tl-title { font-size: 1.3rem; font-weight: 700; margin-bottom: 12px; line-height: 1.3; }
+.tl-desc { color: var(--muted); margin-bottom: 16px; }
+.tl-block { margin-bottom: 14px; }
+.tl-block-h { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+.tl-block-h .icon { color: var(--laser); margin-right: 6px; }
+
+/* ── 기술 태그 ── */
+.tech-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.tech-tag {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  padding: 3px 10px; border-radius: 100px;
+  background: rgba(0,196,255,0.08);
+  border: 1px solid rgba(0,196,255,0.25);
+  color: var(--laser);
+  font-family: var(--font-mono);
+}
+.tech-tag.green { background: rgba(0,229,160,0.08); border-color: rgba(0,229,160,0.25); color: var(--ok); }
+.tech-tag.orange { background: rgba(255,140,66,0.08); border-color: rgba(255,140,66,0.25); color: var(--warn); }
+.tech-tag.purple { background: rgba(168,139,250,0.08); border-color: rgba(168,139,250,0.25); color: var(--future); }
+
+/* ── 결과 박스 ── */
+.result-box {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 20px 24px; font-family: var(--font-mono); font-size: 13px; line-height: 1.8;
+}
+.result-box .ok-val { color: var(--ok); font-weight: 700; }
+.result-box .key { color: var(--muted); }
+.result-box .laser-val { color: var(--laser); }
+.result-box .warn-val { color: var(--warn); }
+
+/* ── 확인 필요 박스 ── */
+.todo-box {
+  margin-top: 14px;
+  background: rgba(255,140,66,0.06);
+  border: 1px solid rgba(255,140,66,0.25);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  font-size: 12.5px; color: #E0C2A8; line-height: 1.7;
+}
+.todo-box strong { color: var(--warn); }
+
+/* ── 로드맵 카드 ── */
+.roadmap { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.roadmap-card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  padding: 28px; position: relative; overflow: hidden;
+}
+.roadmap-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.roadmap-card.phase1::before { background: var(--warn); }
+.roadmap-card.phase2::before { background: var(--laser); }
+.roadmap-card.phase3::before { background: var(--ok); }
+.roadmap-phase {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; margin-bottom: 8px;
+}
+.roadmap-card.phase1 .roadmap-phase { color: var(--warn); }
+.roadmap-card.phase2 .roadmap-phase { color: var(--laser); }
+.roadmap-card.phase3 .roadmap-phase { color: var(--ok); }
+.roadmap-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 12px; }
+.roadmap-items { list-style: none; }
+.roadmap-items li {
+  font-size: 13px; color: var(--muted); padding: 5px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.roadmap-items li:last-child { border-bottom: none; }
+.roadmap-items li::before { content: '→'; color: var(--laser); font-size: 11px; margin-top: 2px; }
+.roadmap-card.phase1 .roadmap-items li::before { color: var(--warn); }
+.roadmap-card.phase3 .roadmap-items li::before { color: var(--ok); }
+
+/* ── 용어집 ── */
+.glossary-filter { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 32px; }
+.filter-btn {
+  padding: 6px 16px; border-radius: 100px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--muted); cursor: pointer; transition: all var(--transition);
+}
+.filter-btn:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+.filter-btn.active { background: rgba(0,196,255,0.1); border-color: var(--laser); color: var(--laser); }
+.glossary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+.glossary-item {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 22px 24px; transition: border-color var(--transition); cursor: default;
+}
+.glossary-item:hover { border-color: rgba(0,196,255,0.3); }
+.glossary-item.hidden { display: none; }
+.g-term { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+.g-cat { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; }
+.g-cat.ai { background: rgba(0,196,255,0.12); color: var(--laser); }
+.g-cat.ml { background: rgba(0,229,160,0.12); color: var(--ok); }
+.g-cat.process { background: rgba(255,140,66,0.12); color: var(--warn); }
+.g-cat.system { background: rgba(255,77,109,0.12); color: var(--danger); }
+.g-cat.future { background: rgba(168,139,250,0.12); color: var(--future); }
+.g-eng { font-size: 12px; color: var(--muted); font-style: italic; margin-bottom: 10px; font-family: var(--font-mono); }
+.g-def { font-size: 13px; color: #A8B8CC; line-height: 1.65; }
+.g-example {
+  margin-top: 10px; padding: 10px 12px; background: rgba(0,0,0,0.3); border-radius: var(--radius-sm);
+  font-size: 12px; color: var(--muted); line-height: 1.55; border-left: 2px solid var(--border);
+}
+.g-example strong { color: var(--laser); font-weight: 600; }
+
+/* ── 연동 블록 다이어그램 ── */
+.flow-diagram { max-width: 760px; margin: 0 auto; }
+.flow-box { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px 28px; }
+.flow-box.future { border-style: dashed; border-color: rgba(168,139,250,0.4); background: rgba(168,139,250,0.04); }
+.flow-box-header { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.flow-box-tag {
+  font-family: var(--font-mono); font-size: 11px; color: var(--laser);
+  background: rgba(0,196,255,0.08); border: 1px solid rgba(0,196,255,0.2);
+  padding: 2px 10px; border-radius: 100px;
+}
+.flow-box-tag.future { color: var(--future); background: rgba(168,139,250,0.1); border-color: rgba(168,139,250,0.3); }
+.flow-box-title { font-size: 16px; font-weight: 800; }
+.flow-items { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 10px; }
+.flow-item { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.flow-item strong { color: var(--text); }
+.flow-arrow { display: flex; flex-direction: column; align-items: center; padding: 18px 0; gap: 8px; }
+.flow-arrow-line { width: 2px; height: 24px; background: linear-gradient(to bottom, var(--laser), rgba(0,196,255,0.05)); }
+.flow-arrow-line.future { background: linear-gradient(to bottom, var(--future), rgba(168,139,250,0.05)); }
+.flow-data {
+  background: var(--bg3); border: 1px dashed var(--border); border-radius: var(--radius-md);
+  padding: 10px 18px; font-family: var(--font-mono); font-size: 12px; color: var(--text);
+  text-align: center; max-width: 100%;
+}
+.flow-data .dir { color: var(--laser); font-weight: 700; margin-right: 6px; }
+.flow-data.pending { border-color: rgba(168,139,250,0.4); }
+.flow-data.pending .dir { color: var(--future); }
+.flow-note { font-size: 11.5px; color: var(--muted); margin-top: 6px; text-align: center; max-width: 90%; }
+
+/* ── 푸터 ── */
+footer { background: var(--bg2); border-top: 1px solid var(--border); padding: 48px 40px; text-align: center; }
+.footer-logo { font-size: 18px; font-weight: 800; color: var(--laser); margin-bottom: 8px; }
+.footer-desc { font-size: 13px; color: var(--muted); }
+
+/* ── 반응형 ── */
+@media (max-width: 768px) {
+  nav { padding: 0 20px; }
+  nav a { display: none; }
+  section { padding: 60px 20px; }
+  .roadmap { grid-template-columns: 1fr; }
+  .hero-stats { gap: 28px; }
+  .tl-step { grid-template-columns: 48px 1fr; gap: 0 16px; }
+}
+
+/* ── 애니메이션 ── */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+.fade-up { animation: fadeUp 0.6s ease both; }
+.fade-up-2 { animation: fadeUp 0.6s 0.15s ease both; }
+.fade-up-3 { animation: fadeUp 0.6s 0.3s ease both; }
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(0,196,255,0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(0,196,255,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,196,255,0); }
+}
+.tl-num { animation: pulse-ring 2.5s infinite; }
+</style>
+</head>
+<body>
+
+<!-- 네비게이션 -->
+<nav>
+  <div class="nav-logo">AI-ADES · Phase 6</div>
+  <a href="#today">오늘 한 일</a>
+  <a href="#next">앞으로 할 일</a>
+  <a href="#glossary">용어집</a>
+  <a href="#connection">현장 연동 구조</a>
+</nav>
+
+<!-- 히어로 -->
+<div class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-tag fade-up">Phase 6 — 설비 연동 + 실데이터 학습 (사전 준비)</div>
+  <h1 class="fade-up-2">고객사 현장 연동을 위해<br><span>오늘 무엇을 준비했는가</span></h1>
+  <p class="hero-sub fade-up-3">
+    고객사 사전 미팅 전, 현장 설비와의 협의 없이도 미리 만들어 둘 수 있는 항목 3가지를 구현했습니다.
+    이 문서는 각 작업이 <strong>왜 필요했는지</strong>, <strong>어떤 기술로 구현했는지</strong>를
+    비전공자도 이해할 수 있도록 설명합니다.
+  </p>
+  <div class="hero-stats fade-up-3">
+    <div class="stat">
+      <span class="stat-num">3</span>
+      <span class="stat-label">오늘 구현 완료</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">1</span>
+      <span class="stat-label">고객사 협의 후 진행</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">250kHz</span>
+      <span class="stat-label">Plasma 센서 데이터 속도</span>
+    </div>
+    <div class="stat">
+      <span class="stat-num">50건</span>
+      <span class="stat-label">자동 재학습 기준치</span>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- 오늘 한 일 -->
+<section id="today">
+  <div class="section-eyebrow">오늘 한 일</div>
+  <h2 class="section-title">고객사 미팅 전, 미리 준비할 수 있는<br>3가지를 먼저 만들었습니다</h2>
+  <p class="section-desc">
+    설비와 직접 연결되는 기능은 고객사 설비 사양(통신 방식, 측정값 종류 등)을 알아야 만들 수 있습니다.
+    하지만 "데이터를 어떻게 처리할지", "AI가 어떻게 학습할지"는 미리 골격을 만들어 둘 수 있습니다.
+    아래 3가지가 바로 그 작업입니다.
+  </p>
+
+  <div class="timeline">
+
+    <!-- STEP 1 -->
+    <div class="tl-step">
+      <div class="tl-left">
+        <div class="tl-num">1</div>
+        <div class="tl-line"></div>
+      </div>
+      <div class="tl-content">
+        <div class="tl-label">데이터 수집 — 입구 만들기</div>
+        <div class="tl-title">Plasma 센서 데이터를 시스템에 넣는 통로 (Plasma ZIP 파서)</div>
+
+        <div class="tl-block">
+          <div class="tl-block-h"><span class="icon">①</span>왜 필요한가</div>
+          <p class="tl-desc" style="margin-bottom:0;">
+            레이저로 가공할 때 <strong>Plasma 센서</strong>가 1초에 25만 번(250kHz) 빛의 세기·온도 등을 측정합니다.
+            이 신호 안에는 "가공이 잘 되고 있는지 / 이상이 생겼는지"를 알려주는 단서가 들어 있습니다.
+            그런데 지금까지는 이 데이터를 시스템 DB에 넣을 방법 자체가 없었습니다.
+            앞으로 만들 AI 이상감지 모델(2번 항목)을 학습시키려면 먼저 이 데이터가 DB에 들어와야 합니다.
+          </p>
+        </div>
+
+        <div class="tl-block">
+          <div class="tl-block-h"><span class="icon">②</span>어떻게 구현했는가</div>
+          <p class="tl-desc" style="margin-bottom:0;">
+            센서 장비가 만들어내는 ZIP 파일(실험번호별 CSV 묶음)을 업로드하면,
+            시스템이 자동으로 압축을 풀고 각 CSV(세미콜론으로 구분된 7개 측정값 컬럼)를 읽어
+            "실험번호 + 시간 + 측정값" 형태의 표로 변환합니다.
+            그 후 기존 실험 기록과 실험번호를 대조해서 어느 실험의 데이터인지 매칭하고, DB에 대량으로 저장합니다.
+          </p>
+        </div>
+
+        <div class="tech-tags">
+          <span class="tech-tag">FastAPI POST /data/plasma/upload</span>
+          <span class="tech-tag">pandas (ZIP/CSV 파싱)</span>
+          <span class="tech-tag green">PostgreSQL plasma_timeseries</span>
+        </div>
+
+        <div class="result-box">
+          <span class="key">검증 결과 (합성 테스트 데이터) ──</span><br>
+          업로드 파일 : <span class="laser-val">AI-ADES_test_plasma_sample.zip</span><br>
+          포함 실험   : <span class="laser-val">5개 실험 (exp_no 1~5)</span>, 각 500개 측정 시점<br>
+          매칭 결과   : <span class="ok-val">5개 실험 모두 매칭, 정상 적재</span><br>
+          <span class="key">────────────────────────────</span><br>
+          → 검증 후 테스트 데이터는 삭제하여 DB를 원상태로 유지
+        </div>
+
+        <div class="todo-box">
+          <strong>고객사 확인 필요</strong> — ① ZIP 안의 CSV 파일명이 실험번호와 동일한지,
+          ② 시간 컬럼의 단위가 초(second)가 맞는지, ③ 데이터의 실제 측정 시각을 어떻게 기록할지
+          (현재는 업로드 시각을 기준으로 임시 계산 중).
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="tl-step">
+      <div class="tl-left">
+        <div class="tl-num">2</div>
+        <div class="tl-line"></div>
+      </div>
+      <div class="tl-content">
+        <div class="tl-label">AI 모델 — 이상 신호를 스스로 찾는 눈</div>
+        <div class="tl-title">레이저 파형에서 "평소와 다른 패턴"을 찾는 AI (LSTM-Autoencoder)</div>
+
+        <div class="tl-block">
+          <div class="tl-block-h"><span class="icon">①</span>왜 필요한가</div>
+          <p class="tl-desc" style="margin-bottom:0;">
+            지금까지 AI(XGBoost)는 Speed·Power 같은 "숫자로 정해진 조건"만 보고 결과를 예측했습니다.
+            하지만 같은 조건이라도 레이저가 쏘는 동안 미세한 떨림, 먼지, 초점 흔들림 등으로
+            <strong>Plasma 파형 자체가 평소와 달라지는 경우</strong>가 있습니다.
+            이런 미세한 이상은 사람이 파형을 일일이 들여다봐도 찾기 어렵고,
+            "정상/비정상"이라고 라벨을 붙여줄 사람도 없습니다.
+            그래서 <strong>"정상적인 파형 패턴만 보여주고, 거기서 벗어나면 이상으로 판단"</strong>하는
+            AI(비지도학습)가 필요합니다.
+          </p>
+        </div>
+
+        <div class="tl-block">
+          <div class="tl-block-h"><span class="icon">②</span>어떻게 구현했는가</div>
+          <p class="tl-desc" style="margin-bottom:0;">
+            <strong>LSTM-Autoencoder</strong>라는 구조를 사용합니다. 동작 원리는 간단합니다 —
+            긴 파형을 짧게 압축했다가(인코더) 다시 원래대로 복원합니다(디코더).
+            정상 파형은 압축→복원해도 원본과 거의 똑같지만, 이상한 파형은 복원이 잘 안 되어
+            <strong>"복원 오차"</strong>가 커집니다. 정상 데이터로 학습한 뒤,
+            이 오차가 평소(정상 데이터)의 상위 5% 수준을 넘으면 "이상 신호"로 판정합니다.
+            파형은 50개 시점 단위로 잘라(슬라이딩 윈도우) 학습에 사용합니다.
+          </p>
+        </div>
+
+        <div class="tech-tags">
+          <span class="tech-tag">PyTorch (LSTM-Autoencoder)</span>
+          <span class="tech-tag">Sliding Window (50개 단위)</span>
+          <span class="tech-tag green">MLflow 모델 기록</span>
+          <span class="tech-tag">POST /model/train-anomaly</span>
+          <span class="tech-tag">POST /predict-anomaly</span>
+        </div>
+
+        <div class="result-box">
+          <span class="key">검증 결과 (합성 테스트 데이터) ──</span><br>
+          PyTorch 포함 이미지 재빌드 → 학습/예측 정상 동작 확인<br>
+          이상 판정 기준(threshold) : 정상 복원오차의 <span class="laser-val">상위 5%</span><br>
+          예측 결과 : 실험을 M1/M2/Blank 3구간으로 나누어 구간별 이상비율 산출<br>
+          <span class="key">────────────────────────────</span><br>
+          → 모델/스케일러/기준값을 저장, MLflow에 실험 기록
+        </div>
+
+        <div class="todo-box">
+          <strong>고객사/실데이터 확인 필요</strong> — 현재 M1/M2/Blank 구간 구분은
+          "데이터를 3등분"하는 임시 방식입니다. 실제로는 가공 단계가 바뀌는 시점을
+          파형에서 자동으로 찾아내는 로직으로 교체해야 합니다.
+          또한 윈도우 크기 등 설정값은 실제 현장 데이터로 다시 조정이 필요합니다.
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="tl-step">
+      <div class="tl-left">
+        <div class="tl-num">3</div>
+        <div class="tl-line"></div>
+      </div>
+      <div class="tl-content">
+        <div class="tl-label">운영 자동화 — AI가 스스로 다시 공부한다</div>
+        <div class="tl-title">실험 데이터가 쌓이면 자동으로 재학습하는 구조 (경량 자동 재학습 트리거)</div>
+
+        <div class="tl-block">
+          <div class="tl-block-h"><span class="icon">①</span>왜 필요한가</div>
+          <p class="tl-desc" style="margin-bottom:0;">
+            AI 모델은 데이터가 쌓일수록 더 똑똑해집니다. 하지만 매번 운영자가
+            "이제 데이터가 많이 쌓였으니 재학습해야지"를 직접 판단해서 버튼을 누르는 건
+            번거롭고 잊어버리기 쉽습니다. 그렇다고 별도의 자동화 서버(Airflow 등)를
+            새로 띄우면 개발용 PC(Surface, 32GB 메모리)에 부담이 됩니다.
+          </p>
+        </div>
+
+        <div class="tl-block">
+          <div class="tl-block-h"><span class="icon">②</span>어떻게 구현했는가</div>
+          <p class="tl-desc" style="margin-bottom:0;">
+            새로운 별도 서버 없이, <strong>기존 시스템 안에 가벼운 점검 로직</strong>을 추가했습니다.
+            새 실험 결과가 하나 저장될 때마다(Excel 업로드, Auto DOE 결과 입력 등)
+            "현재까지 누적된 전체 실험 건수"와 "마지막으로 모델을 학습했을 때의 건수"를 비교합니다.
+            그 차이가 <strong>50건(설정 가능)</strong> 이상이면, 시스템이 알아서 백그라운드로
+            재학습을 시작하고, 누가 언제 왜 재학습했는지 기록(감사로그)을 남깁니다.
+          </p>
+        </div>
+
+        <div class="tech-tags">
+          <span class="tech-tag">FastAPI 백그라운드 스레드</span>
+          <span class="tech-tag green">.env AUTO_RETRAIN_THRESHOLD=50</span>
+          <span class="tech-tag">audit_logs 자동 기록</span>
+          <span class="tech-tag">POST /admin/model/check-auto-retrain</span>
+        </div>
+
+        <div class="result-box">
+          <span class="key">검증 결과 (실제 운영 데이터) ──</span><br>
+          누적 실험 건수 : <span class="laser-val">338건</span> / 마지막 학습 시점 : <span class="laser-val">328건</span><br>
+          → 차이가 기준치를 넘어 <span class="ok-val">실제 자동 재학습 실행됨</span><br>
+          재학습 결과 : Depth 모델 R²=<span class="ok-val">0.83</span>,
+          품질 모델 F1(OK)=<span class="ok-val">0.72</span><br>
+          <span class="key">────────────────────────────</span><br>
+          → 실제 운영 모델이 최신 데이터로 갱신된 정식 결과 (테스트용 더미 아님)
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 앞으로 할 일 -->
+<section id="next">
+  <div class="section-eyebrow">앞으로 할 일</div>
+  <h2 class="section-title">고객사 협의 이후 진행할 작업들</h2>
+  <p class="section-desc">
+    아래 작업은 고객사 현장 설비의 사양(통신 방식, 측정 가능 항목, 데이터 파일 규격)을
+    확인한 뒤에야 구체적으로 설계할 수 있습니다. 사전 미팅에서 확인이 필요한 항목들입니다.
+  </p>
+
+  <div class="roadmap">
+    <div class="roadmap-card phase1">
+      <div class="roadmap-phase">최우선 · 협의 필요</div>
+      <div class="roadmap-title">설비 통신 연동</div>
+      <ul class="roadmap-items">
+        <li>CO₂ 레이저 설비와의 통신 방식 확인 (OPC-UA / RS-232 / Ethernet 등)</li>
+        <li>레이저 파라미터(Speed/Defocus/Frequency/Power)를 설비에 자동 전송</li>
+        <li>가공 결과(Kerf/Depth, 양품·불량)를 설비/계측기에서 자동 수신</li>
+        <li>Plasma 센서 데이터를 ZIP 수동 업로드 → 실시간 자동 수집으로 전환</li>
+      </ul>
+    </div>
+    <div class="roadmap-card phase2">
+      <div class="roadmap-phase">정밀화</div>
+      <div class="roadmap-title">Plasma · AI 모델 고도화</div>
+      <ul class="roadmap-items">
+        <li>실제 타임스탬프 규격 확인 후 시간 계산 로직 정정</li>
+        <li>M1/M2/Blank 가공 구간 자동 판별 로직으로 교체 (현재 3등분 임시안)</li>
+        <li>실데이터로 LSTM-Autoencoder 재학습 및 하이퍼파라미터 튜닝 (목표 F1≥0.80)</li>
+        <li>XGBoost(표 데이터) + LSTM(파형) 결과를 함께 보는 통합 판정</li>
+      </ul>
+    </div>
+    <div class="roadmap-card phase3">
+      <div class="roadmap-phase">운영 안정화</div>
+      <div class="roadmap-title">현장 적용 준비</div>
+      <ul class="roadmap-items">
+        <li>Grafana 대시보드에 이상감지 결과(Plasma 이상비율) 추가</li>
+        <li>고객사 워크스테이션 2대에 설치 테스트 (Phase 5)</li>
+        <li>설비 연동 후 실데이터로 전체 모델 재검증</li>
+        <li>운영자 알림(이상감지 시 경보) 연동</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 용어집 -->
+<section id="glossary">
+  <div class="section-eyebrow">용어집</div>
+  <h2 class="section-title">Phase 6에서 새로 등장한<br>핵심 용어 해설</h2>
+  <p class="section-desc">오늘 작업에서 사용된 AI·데이터·운영 기술 용어를 쉽게 풀어 설명합니다.</p>
+
+  <div class="glossary-filter">
+    <button class="filter-btn active" onclick="filterGlossary('all')">전체</button>
+    <button class="filter-btn" onclick="filterGlossary('ml')">AI · 머신러닝</button>
+    <button class="filter-btn" onclick="filterGlossary('process')">센서 · 데이터</button>
+    <button class="filter-btn" onclick="filterGlossary('ai')">운영 자동화</button>
+    <button class="filter-btn" onclick="filterGlossary('future')">현장 연동(예정)</button>
+  </div>
+
+  <div class="glossary-grid" id="glossary-grid">
+
+    <div class="glossary-item" data-cat="ml">
+      <div class="g-term">LSTM <span class="g-cat ml">AI</span></div>
+      <div class="g-eng">Long Short-Term Memory</div>
+      <div class="g-def">시간 순서가 있는 데이터(파형, 문장 등)를 분석할 때, "바로 직전 값"뿐 아니라
+      "한참 전의 흐름"까지 기억하면서 패턴을 파악하는 AI 신경망 구조입니다.</div>
+      <div class="g-example"><strong>AI-ADES 적용:</strong> Plasma 센서가 250kHz로 수집한 시계열 신호의
+      흐름(파형 모양)을 학습하는 데 사용합니다.</div>
+    </div>
+
+    <div class="glossary-item" data-cat="ml">
+      <div class="g-term">Autoencoder <span class="g-cat ml">AI</span></div>
+      <div class="g-eng">오토인코더 (자기 복원 신경망)</div>
+      <div class="g-def">입력 데이터를 일부러 작게 압축했다가 다시 원래 크기로 복원하도록 학습시키는 AI입니다.
+      "정상 데이터는 잘 복원되고, 처음 보는 이상한 데이터는 복원이 잘 안 된다"는 성질을 이용합니다.</div>
+      <div class="g-example"><strong>AI-ADES 적용:</strong> LSTM과 결합한 LSTM-Autoencoder로
+      Plasma 파형의 정상 패턴을 학습하고, 복원이 잘 안 되는 구간을 "이상 신호"로 표시합니다.</div>
+    </div>
+
+    <div class="glossary-item" data-cat="ml">
+      <div class="g-term">비지도학습 <span class="g-cat ml">AI</span></div>
+      <div class="g-eng">Unsupervised Learning</div>
+      <div class="g-def">"정답(라벨)"이 없는 데이터로 학습하는 방식입니다. 사람이 일일이
+      "이건 정상, 이건 이상"이라고 표시해주지 않아도, 데이터 안의 패턴 자체를 스스로 익힙니다.</div>
+      <div class="g-example"><strong>AI-ADES 적용:</strong> Plasma 파형에는 "이상 여부" 라벨이 없으므로,
+      정상 파형만으로 학습시켜 패턴에서 벗어나는 것을 자동으로 찾아냅니다.</div>
+    </div>
+
+    <div class="glossary-item" data-cat="ml">
+      <div class="g-term">복원 오차 (Reconstruction Error) <span class="g-cat ml">AI</span></div>
+      <div class="g-eng">Reconstruction Error</div>
+      <div class="g-def">Autoencoder가 압축했다가 복원한 결과와 원본 데이터의 차이입니다.
+      이 차이가 클수록 "AI가 처음 보는 낯선 패턴"이라는 뜻입니다.</div>
+      <div class="g-example"><strong>AI-ADES 적용:</strong> 정상 데이터의 복원 오차 분포 중
+      상위 5% 지점을 "이상 판정 기준선(threshold)"으로 사용합니다.</div>
+    </div>
+
+    <div class="glossary-item" data-cat="ml">
+      <div class="g-term">슬라이딩 윈도우 (Sliding Window) <span class="g-cat ml">AI</span></div>
+      <div class="g-eng">Sliding Window</div>
+      <div class="g-def">길게 이어진 시계열 데이터를 일정한 길이(예: 50개 시점)로 잘라서
+      여러 개의 작은 조각(샘플)을 만드는 방법입니다. 조금씩 겹치게 잘라서 데이터 양을 늘릴 수 있습니다.</div>
+      <div class="g-example"><strong>AI-ADES 적용:</strong> 50개 시점 단위로 자르고, 10개씩 이동하며
+      잘라서 LSTM-Autoencoder 학습용 샘플을 생성합니다.</div>
+    </div>
+
+    <div class="glossary-item" data-cat="process">
+      <div class="g-term">Plasma 센서 <span class="g-cat process">센서</span></div>
+      <div class="g-eng">Plasma Sensor</div>
+      <div class="g-def">레이저가 소재를 가공할 때 발생하는 빛(플라즈마)의 세기, 온도, 반사율 등을
+      매우 빠른 속도(250kHz = 1초에 25만 번)로 측정하는 센서입니다.</div>
+      <div class="g-example"><strong>AI-ADES 적용:</strong> Area, Plasma, P-Raw, Temp, T-Raw, Refl, R-Raw
+      7개 채널을 측정하며, 이 신호의 패턴 변화로 가공 이상을 조기에 감지하려 합니다.</div>
+    </div>
+
+    <div class="glossary-item" data-cat="process">
+      <div class="g-term">시계열 데이터 (Time-series) <span class="g-cat process">데이터</span></div>
+      <div class="g-eng">Time-series Data</div>
+      <div class="g-def">시간 순서대로 기록된 데이터입니다. "몇 시 몇 분 몇 초에 어떤 값이었다"가
+      연속적으로 쌓인 형태로, 변화의 흐름(추세, 진동, 이상 패턴)을 분석하는 데 사용됩니다.</div>
+      <div class="g-example"><strong>AI-ADES 적용:</strong> Plasma 센서가 만들어내는 250kHz 신호가
+      대표적인 시계열 데이터이며, plasma_timeseries 테이블에 저장됩니다.</div>
+    </div>
+
+    <div class="glossary-item" data-cat="process">
+      <div class="g-term">Long format / Wide format <span class="g-cat process">데이터</span></div>
+      <div class="g-eng">데이터 표 형식</div>
+      <div class="g-def">같은 데이터를 표로 표현하는 두 가지 방식입니다.
+      <strong>Long format</strong>은 "시간, 채널명, 값"처럼 한 줄에 하나의 측정값만 적는 방식이고
+      (DB 저장에 유리), <strong>Wide format</strong>은 채널마다 별도의 열(컬럼)을 만들어
+      한 시점의 모든 채널 값을 한 줄에 나열하는 방식입니다 (AI 모델 입력에 유리).</div>
+      <div class="g-example"><strong>AI-ADES 적용:</strong> DB에는 long format으로 저장하고,
+      LSTM 학습 시에는 wide format으로 변환해서 사용합니다.</div>
+    </div>
+
+    <div class="glossary-item" data-cat="ai">
+      <div class="g-term">자동 재학습 트리거 <span class="g-cat ai">자동화</span></div>
+      <div class="g-eng">Auto-retrain Trigger</div>
+      <div class="g-def">새로운 데이터가 일정량 이상 쌓이면, 사람이 시키지 않아도
+      AI 모델을 자동으로 다시 학습시키는 장치입니다.</div>
+      <div class="g-example"><strong>AI-ADES 적용:</strong> 누적 실험 건수가 마지막 학습 시점보다
+      50건 이상 늘어나면 자동으로 재학습을 시작합니다 (.env에서 기준치 조정 가능).</div>
+    </div>
+
+    <div class="glossary-item" data-cat="ai">
+      <div class="g-term">감사로그 (Audit Log) <span class="g-cat ai">자동화</span></div>
+      <div class="g-eng">Audit Log</div>
+      <div class="g-def">시스템에서 일어난 중요한 동작(승인, 거부, 설정 변경, 재학습 등)을
+      "누가, 언제, 무엇을, 왜" 했는지 기록해두는 이력입니다.</div>
+      <div class="g-example"><strong>AI-ADES 적용:</strong> 자동 재학습이 실행되면
+      "system(auto)"가 실행했다는 기록과 그 사유(누적 건수)가 audit_logs 테이블에 자동 기록됩니다.</div>
+    </div>
+
+    <div class="glossary-item" data-cat="ai">
+      <div class="g-term">MLflow <span class="g-cat ai">자동화</span></div>
+      <div class="g-eng">머신러닝 실험 관리 플랫폼</div>
+      <div class="g-def">AI 모델을 학습할 때마다 어떤 설정으로, 어떤 성능이 나왔는지를
+      자동으로 기록하고 비교할 수 있게 해주는 도구입니다.</div>
+      <div class="g-example"><strong>AI-ADES 적용:</strong> 기존 XGBoost 모델뿐 아니라
+      이번에 추가한 LSTM-Autoencoder(PyTorch) 모델도 별도 방식으로 기록되도록 확장했습니다.</div>
+    </div>
+
+    <div class="glossary-item" data-cat="future">
+      <div class="g-term">OPC-UA <span class="g-cat future">현장연동</span></div>
+      <div class="g-eng">Open Platform Communications - Unified Architecture</div>
+      <div class="g-def">공장의 제조 설비와 컴퓨터 시스템이 서로 데이터를 주고받을 때 널리 쓰이는
+      산업용 표준 통신 규격입니다. 설비의 현재 상태나 설정값을 표준화된 방식으로 읽고 쓸 수 있습니다.</div>
+      <div class="g-example"><strong>AI-ADES 적용 예정:</strong> 고객사 CO₂ 레이저 설비가
+      OPC-UA를 지원하는 경우, 이 규격을 통해 파라미터 전송과 결과 수신을 자동화할 수 있습니다
+      (지원 여부는 고객사 확인 필요).</div>
+    </div>
+
+    <div class="glossary-item" data-cat="future">
+      <div class="g-term">설비 통신 드라이버 <span class="g-cat future">현장연동</span></div>
+      <div class="g-eng">Equipment Communication Driver</div>
+      <div class="g-def">AI-ADES 시스템과 실제 레이저 설비 사이에서 "통역" 역할을 하는 소프트웨어 모듈입니다.
+      설비마다 통신 방식(OPC-UA, RS-232 시리얼, Ethernet 소켓 등)이 다르기 때문에,
+      이를 표준화된 형태로 변환해주는 추상화 계층이 필요합니다.</div>
+      <div class="g-example"><strong>AI-ADES 적용 예정:</strong> 고객사 설비의 통신 방식을 확인한 뒤,
+      "AI 제안 파라미터 전송"과 "가공 결과 자동 수신" 기능을 이 드라이버를 통해 구현할 예정입니다.</div>
+    </div>
+
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 현장 연동 구조 -->
+<section id="connection">
+  <div class="section-eyebrow">현장 연동 구조</div>
+  <h2 class="section-title">실제 현장에 투입되면<br>시스템과 설비는 이렇게 연결됩니다</h2>
+  <p class="section-desc">
+    AI-ADES는 크게 3개의 층으로 나뉘어 동작합니다. 가운데 회색 점선 박스는
+    <strong>아직 만들어지지 않은, 고객사 협의 후 개발할 부분</strong>입니다.
+  </p>
+
+  <div class="flow-diagram">
+
+    <!-- Layer A: 현장 설비 -->
+    <div class="flow-box">
+      <div class="flow-box-header">
+        <span class="flow-box-tag">고객사 현장</span>
+        <span class="flow-box-title">CO₂ 레이저 가공 설비</span>
+      </div>
+      <div class="flow-items">
+        <div class="flow-item"><strong>레이저 컨트롤러</strong><br>Speed / Defocus / Frequency / Power 설정</div>
+        <div class="flow-item"><strong>Plasma 센서</strong><br>250kHz, 7개 채널 실시간 측정</div>
+        <div class="flow-item"><strong>현미경 계측기</strong><br>가공 후 Kerf(폭) · Depth(깊이) 측정</div>
+      </div>
+    </div>
+
+    <!-- Arrow A-B (future) -->
+    <div class="flow-arrow">
+      <div class="flow-arrow-line future"></div>
+      <div class="flow-data pending">
+        <div><span class="dir">→</span>AI-ADES → 설비 : 레이저 파라미터 자동 전송 (Speed/Defocus/Frequency/Power)</div>
+      </div>
+      <div class="flow-data pending">
+        <div><span class="dir">←</span>설비 → AI-ADES : 가공 결과(Kerf/Depth, 양품·불량) + Plasma 원시 데이터 자동 수신</div>
+      </div>
+      <div class="flow-note">
+        ⏳ <strong>설비 통신 드라이버 (Phase 6 예정)</strong> — OPC-UA / RS-232 / Ethernet 중 무엇을 쓸지 고객사 협의 필요.<br>
+        현재는 운영자가 화면을 보고 설비를 직접 조작하고, 결과·Plasma 데이터를 수동으로 입력/업로드합니다.
+      </div>
+      <div class="flow-arrow-line future"></div>
+    </div>
+
+    <!-- Layer B: AI-ADES 서버 -->
+    <div class="flow-box">
+      <div class="flow-box-header">
+        <span class="flow-box-tag">AI-ADES 서버 (현재: 개발 PC → 향후: 고객사 워크스테이션)</span>
+        <span class="flow-box-title">데이터 처리 · AI 예측 · 운영 자동화</span>
+      </div>
+      <div class="flow-items">
+        <div class="flow-item"><strong>data-prep-agent (8010)</strong><br>Excel/Plasma 데이터 적재 · 전처리</div>
+        <div class="flow-item"><strong>modeling-agent (8011)</strong><br>XGBoost 품질 예측 + LSTM 이상감지</div>
+        <div class="flow-item"><strong>execution-agent (8012)</strong><br>Auto DOE 제안 · 승인 워크플로우 · 자동 재학습</div>
+        <div class="flow-item"><strong>PostgreSQL · MLflow</strong><br>실험/레시피/모델 기록 저장</div>
+      </div>
+    </div>
+
+    <!-- Arrow B-C (existing) -->
+    <div class="flow-arrow">
+      <div class="flow-arrow-line"></div>
+      <div class="flow-data">
+        <div><span class="dir">→</span>AI-ADES → 운영자 : AI 제안 파라미터, 예측 결과, SHAP/이상감지 결과, 승인 요청</div>
+      </div>
+      <div class="flow-data">
+        <div><span class="dir">←</span>운영자 → AI-ADES : 승인/거부, 실험 결과(Kerf/Depth) 입력</div>
+      </div>
+      <div class="flow-note">
+        ✅ <strong>이미 구현 완료 (Phase 0~4)</strong> — React 화면(포트 5173)을 통해 실시간으로 주고받습니다.
+      </div>
+      <div class="flow-arrow-line"></div>
+    </div>
+
+    <!-- Layer C: 운영자 -->
+    <div class="flow-box">
+      <div class="flow-box-header">
+        <span class="flow-box-tag">현장 운영자</span>
+        <span class="flow-box-title">Human-in-the-Loop (최종 승인)</span>
+      </div>
+      <div class="flow-items">
+        <div class="flow-item"><strong>소재 조건 입력</strong><br>오늘 가공할 M1/M2 소재·두께 입력</div>
+        <div class="flow-item"><strong>AI 제안 검토 · 승인</strong><br>제안된 파라미터를 보고 승인/거부/수정</div>
+        <div class="flow-item"><strong>가공 후 결과 입력</strong><br>현미경 계측값(Kerf/Depth)을 시스템에 입력</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  <div class="footer-logo">AI-ADES</div>
+  <div class="footer-desc">AI Autonomous Data Evaluation System — Phase 6 사전 준비 작업 안내</div>
+  <div style="margin-top:16px;font-size:12px;color:#3A4A5A;">
+    고객사 사전 미팅용 설명 자료 | 회색 점선 영역은 협의 후 개발 예정
+  </div>
+</footer>
+
+<script>
+function filterGlossary(cat) {
+  const items = document.querySelectorAll('.glossary-item');
+  items.forEach(item => {
+    if (cat === 'all' || item.dataset.cat === cat) {
+      item.classList.remove('hidden');
+    } else {
+      item.classList.add('hidden');
+    }
+  });
+  document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('nav a');
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      navLinks.forEach(link => {
+        link.classList.toggle('active', link.getAttribute('href') === '#' + entry.target.id);
+      });
+    }
+  });
+}, { threshold: 0.3 });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>
