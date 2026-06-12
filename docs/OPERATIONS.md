@@ -47,7 +47,16 @@ http://localhost:3010
 > ⚠ `execution-agent`, `data-prep-agent` 등은 docker-compose에 소스 볼륨 마운트가 없으므로,
 > `main.py`/`admin.py` 등 백엔드 코드를 수정한 뒤에는 **반드시 이미지 재빌드 + 재기동**이 필요하다.
 > (단순 `restart`만으로는 변경 사항이 반영되지 않음 — 이전 이미지로 재시작될 뿐)
-> 프론트엔드(`frontend/`)는 Vite dev 서버가 호스트에서 직접 떠 있으므로 코드 수정이 즉시 HMR로 반영된다.
+> 프론트엔드(`frontend/`)는 `ades-frontend` 컨테이너에 `./frontend:/app`이 바인드 마운트되어 있어
+> 코드 수정이 Vite HMR로 즉시 반영된다 (재빌드 불필요).
+
+> ⚠ **`frontend/vite.config.js`를 수정한 경우, 수정 후 반드시 `docker compose restart frontend`를 실행할 것.**
+> Windows + Docker Desktop 바인드 마운트 환경에서 vite가 설정 변경을 감지해 자체 재시작할 때
+> 파일 감시기(FSWatcher)가 `/app`에 대해 `EIO`(입출력 오류)를 받아 Node 프로세스가 그대로 죽는 경우가 있다
+> (`Error: EIO: i/o error, stat '/app'`, uncaught FSWatcher 'error' 이벤트).
+> `restart: unless-stopped`로 결국 재기동되지만 Docker Desktop이 즉시 재시도하지 않으면
+> frontend가 한동안(호스트 절전 시 수 시간) 다운된 상태로 남을 수 있다.
+> → vite.config.js 변경 후에는 자동 재시작에 의존하지 말고 수동으로 `docker compose restart frontend` 실행.
 
 ---
 

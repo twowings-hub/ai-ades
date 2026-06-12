@@ -363,3 +363,31 @@
 ### 다음 단계
 - 본 세션 변경사항도 git commit 미완료 (이전 세션 변경사항 포함 다수 누적)
 - main.py 500줄 제한 초과(577줄) 추가 분리 검토
+
+---
+
+## Phase 4 E2E 통합테스트 + main.py 분리 + 운영 가이드 보강 (2026-06-12)
+
+### 1. Phase 4 E2E 통합테스트 (API 레벨)
+- 브라우저 자동화 도구 부재로 GUI 스크린샷은 생략, 각 화면이 호출하는 API를 실제로 호출해 검증
+- `/admin` 10개 섹션(상태/서비스/LLM/재학습/판정기준/소재종류/사용자/알림/감사로그/데이터)의 조회 API 전부 정상
+- Auto DOE 풀플로우: `/doe/suggest` → `/doe/explanation`(LLM 비동기 생성) → `/doe/approve` → `/doe/evaluate`(AI 평가) → `/doe/result`(레시피 저장) 정상 동작 확인, 테스트 데이터는 검증 후 정리(원상복구: experiments 343/recipes 10/audit_logs 39)
+- `/data/upload`(샘플 Excel 01) → 10건 적재 확인 후 정리
+- `/experiments` 필터(quality)/검색(exp_no, notes) 정상
+- `/chat` 세션 생성/목록/조회/삭제 정상 (한글 제목 DB 저장은 정상, 표시 문제는 Git Bash↔Python 파이프의 콘솔 인코딩 이슈였음 — 앱 버그 아님)
+- 이전 세션의 `material_types` 중복 "sample" 항목은 이미 정리되어 있음을 확인
+
+### 2. frontend EIO 크래시 — 운영 가이드 추가
+- `docker logs ades-frontend`에서 직전 세션(06-12 05:51) `vite.config.js` 변경 시 watcher 재시작 도중 `Error: EIO: i/o error, stat '/app'`로 Node 프로세스 크래시 → `restart: unless-stopped`로 결국 복구되었으나 호스트 절전 등으로 장시간(3시간 40분) 다운됨
+- `docs/OPERATIONS.md`: frontend가 호스트 Vite가 아니라 `ades-frontend` 컨테이너(바인드마운트+HMR)로 동작함을 정정, `vite.config.js` 수정 후 `docker compose restart frontend` 수동 실행 권고 추가
+
+### 3. main.py 분리 (CLAUDE.md 500줄 제한 대응)
+- `services/execution-agent/main.py`(577줄)에서 Auto DOE 워크플로우 전체를 `doe_routes.py`(신규, APIRouter prefix="/doe")로 이동
+  - 이동 대상: `/doe/suggest`, `/doe/explanation/{id}`, `/doe/approve`, `/doe/reject`, `/doe/evaluate`, `/doe/result`와 관련 Pydantic 모델, `SUGGESTIONS` 전역 상태, `_call_predict`/`_generate_explanation_bg`/`_get_suggestion`/`_insert_experiment` 헬퍼
+  - `_response`는 기존 다른 라우터들과 동일하게 `responses.make_response`를 사용하도록 통일
+- main.py는 195줄로 축소, `/health`/`/material-types`/`/recipes`/`/experiments`/`/recipes/{m1_length}/{m2_length}`만 남음 (doe_routes.py는 400줄)
+- execution-agent 재빌드 후 `/doe/suggest`→`/doe/approve`→`/doe/evaluate` 재검증 및 `/admin/health`, `/material-types`, `/experiments` 정상 응답 확인 (DB 카운트 원복 확인)
+
+### 다음 단계
+- 본 세션 변경사항(E2E 테스트, OPERATIONS.md, doe_routes.py 분리) git commit 미완료
+- Plasma 실데이터 확인 후 region 판별 임계값 재조정 필요 (보류 중)
