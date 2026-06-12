@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { executionApi } from '../api/client'
 import { useSession } from '../context/SessionContext'
@@ -25,6 +25,10 @@ export default function ResultPage() {
 
   const [actualKerf, setActualKerf] = useState('')
   const [actualDepth, setActualDepth] = useState('')
+  const [notes, setNotes] = useState('')
+  const [notesEdited, setNotesEdited] = useState(false)
+  const [evalLoading, setEvalLoading] = useState(false)
+  const [evalElapsedMs, setEvalElapsedMs] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [result, setResult] = useState(null)
@@ -40,7 +44,53 @@ export default function ResultPage() {
     )
   }
 
+  // AI 평가 생성 중 경과 시간 기반으로 진행률/예상 남은 시간을 표시한다
+  // (실제 완료 시점을 알 수 없으므로 EVAL_ESTIMATED_MS 기준으로 95%까지 점진적으로 채움)
+  useEffect(() => {
+    if (!evalLoading) {
+      setEvalElapsedMs(0)
+      return
+    }
+    const startedAt = Date.now()
+    const interval = setInterval(() => setEvalElapsedMs(Date.now() - startedAt), 200)
+    return () => clearInterval(interval)
+  }, [evalLoading])
+
+  const EVAL_ESTIMATED_MS = 8000
+  const evalProgressPct = Math.min(95, (evalElapsedMs / EVAL_ESTIMATED_MS) * 100)
+  const evalRemainingS = Math.max(0, Math.ceil((EVAL_ESTIMATED_MS - evalElapsedMs) / 1000))
+
   const canSubmit = actualKerf !== '' && actualDepth !== '' && !loading
+  const canEvaluate = actualKerf !== '' && actualDepth !== '' && !evalLoading && !result
+
+  const handleGenerateEvaluation = async () => {
+    if (!canEvaluate) return
+    setEvalLoading(true)
+    setError(null)
+    try {
+      const res = await executionApi.post('/doe/evaluate', {
+        suggestion_id: suggestion.suggestion_id,
+        actual_kerf: parseFloat(actualKerf),
+        actual_depth: parseFloat(actualDepth),
+      })
+      const { evaluation } = res.data.data
+      if (evaluation) {
+        setNotes(evaluation)
+        setNotesEdited(false)
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || err.message)
+    } finally {
+      setEvalLoading(false)
+    }
+  }
+
+  // 실측값을 모두 입력하면 AI가 평가 초안을 자동으로 작성한다 (운영자가 직접 입력을 시작했다면 덮어쓰지 않음)
+  const handleActualBlur = () => {
+    if (canEvaluate && notes.trim() === '' && !notesEdited) {
+      handleGenerateEvaluation()
+    }
+  }
 
   const handleSave = async () => {
     setLoading(true)
@@ -51,6 +101,7 @@ export default function ResultPage() {
         actual_kerf: parseFloat(actualKerf),
         actual_depth: parseFloat(actualDepth),
         operator_name: session.operatorName,
+        notes: notes.trim() === '' ? null : notes.trim(),
       })
       const data = res.data.data
       setResult(data)
@@ -132,6 +183,7 @@ export default function ResultPage() {
               step="0.1"
               value={actualKerf}
               onChange={(e) => setActualKerf(e.target.value)}
+              onBlur={handleActualBlur}
               disabled={!!result}
               style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 160 }}
             />
@@ -143,11 +195,49 @@ export default function ResultPage() {
               step="0.1"
               value={actualDepth}
               onChange={(e) => setActualDepth(e.target.value)}
+              onBlur={handleActualBlur}
               disabled={!!result}
               style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 160 }}
             />
           </label>
         </div>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>
+              실험 결과 설명 (보고용) <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(선택)</span>
+            </span>
+            {!result && (
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={!canEvaluate}
+                onClick={() => { setNotesEdited(false); handleGenerateEvaluation() }}
+              >
+                {evalLoading ? <><span className="spinner" /> AI 평가 생성 중...</> : 'AI 평가로 채우기'}
+              </button>
+            )}
+          </div>
+          {evalLoading && (
+            <div>
+              <div className="progress-bar">
+                <div className="progress-bar-fill" style={{ width: `${evalProgressPct}%` }} />
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                AI 평가 생성 중... {Math.round(evalProgressPct)}%
+                {evalRemainingS > 0 ? ` (약 ${evalRemainingS}초 남음)` : ' (잠시만 기다려주세요)'}
+              </div>
+            </div>
+          )}
+          <textarea
+            value={notes}
+            onChange={(e) => { setNotes(e.target.value); setNotesEdited(true) }}
+            disabled={!!result}
+            rows={3}
+            placeholder="Kerf/Depth를 입력하면 AI가 평가 초안을 작성합니다. 내용을 검토하고 필요시 수정/보완하세요."
+            style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, resize: 'vertical', fontFamily: 'inherit' }}
+          />
+        </label>
 
         {!result && (
           <button className="btn btn-primary" disabled={!canSubmit} onClick={handleSave}>

@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react'
 import { executionApi } from '../api/client'
 
+// 학습 데이터에 포함된 대표값 (빠른 선택용 프리셋). 그 외 값도 직접 입력 가능하다.
+const M1_PRESETS = [4, 10, 20]
+const M2_PRESETS = [10, 25, 50]
+
 export default function RecipeSearchPage() {
   const [materialTypes, setMaterialTypes] = useState({ m1: [], m2: [] })
   const [m1Glass, setM1Glass] = useState(null)
@@ -132,25 +136,53 @@ export default function RecipeSearchPage() {
         <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 20 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             M1 ({m1Glass ?? '-'}) Length (mm) <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(선택)</span>
-            <input
-              type="number"
-              step="0.1"
-              value={m1Length}
-              onChange={(e) => setM1Length(e.target.value === '' ? '' : parseFloat(e.target.value))}
-              placeholder="예: 10"
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 160 }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="number"
+                step="0.1"
+                value={m1Length}
+                onChange={(e) => setM1Length(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                placeholder="예: 10"
+                style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 120 }}
+              />
+              <div style={{ display: 'flex', gap: 6 }}>
+                {M1_PRESETS.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    className={`btn btn-sm ${m1Length === v ? 'btn-selected' : ''}`}
+                    onClick={() => setM1Length(v)}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             M2 ({m2Film ?? '-'}) Length (mm) <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(선택)</span>
-            <input
-              type="number"
-              step="0.1"
-              value={m2Length}
-              onChange={(e) => setM2Length(e.target.value === '' ? '' : parseFloat(e.target.value))}
-              placeholder="예: 25"
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 160 }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="number"
+                step="0.1"
+                value={m2Length}
+                onChange={(e) => setM2Length(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                placeholder="예: 25"
+                style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 120 }}
+              />
+              <div style={{ display: 'flex', gap: 6 }}>
+                {M2_PRESETS.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    className={`btn btn-sm ${m2Length === v ? 'btn-selected' : ''}`}
+                    onClick={() => setM2Length(v)}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+            </div>
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             Thickness (μm) <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(선택)</span>
@@ -273,6 +305,9 @@ export default function RecipeSearchPage() {
               <tr><td>신뢰도</td><td>{result.recipe.confidence != null ? `${(result.recipe.confidence * 100).toFixed(1)}%` : '-'}</td></tr>
               <tr><td>DOE 수렴 회차</td><td>{result.recipe.doe_attempts}</td></tr>
               <tr><td>승인자 / 일시</td><td>{result.recipe.approved_by} / {result.recipe.created_at ? new Date(result.recipe.created_at).toLocaleString() : '-'}</td></tr>
+              {result.recipe.notes && (
+                <tr><td>설명 (보고용 메모)</td><td style={{ whiteSpace: 'pre-wrap' }}>{result.recipe.notes}</td></tr>
+              )}
             </tbody>
           </table>
         </div>

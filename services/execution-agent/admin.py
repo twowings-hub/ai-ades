@@ -159,7 +159,8 @@ def llm_available_models():
     except requests.RequestException:
         pass
 
-    return _response(True, {"ollama": ollama_models, "api": API_MODELS}, "사용 가능한 모델 조회 완료")
+    current = {"provider": llm_explainer._STATE["provider"], "model": llm_explainer._STATE["model"]}
+    return _response(True, {"ollama": ollama_models, "api": API_MODELS, "current": current}, "사용 가능한 모델 조회 완료")
 
 
 class LlmSwitchRequest(OperatorRequest):

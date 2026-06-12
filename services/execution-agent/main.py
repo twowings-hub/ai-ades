@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 import requests
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -19,11 +19,12 @@ from pydantic import BaseModel, Field
 import admin
 import admin_data
 import approval
+import chat_routes
 import material_types
 import recipe_db
 from bayesian_opt import suggest_params
 from db import QUALITY_SCORE, get_connection, judge_quality
-from llm_explainer import generate_explanation
+from llm_explainer import generate_explanation, generate_result_evaluation
 
 load_dotenv()
 
@@ -40,6 +41,7 @@ app.add_middleware(
 app.include_router(admin.router)
 app.include_router(admin_data.router)
 app.include_router(material_types.router)
+app.include_router(chat_routes.router)
 
 PORT = int(os.getenv("EXECUTION_PORT", 8012))
 MODELING_AGENT_URL = os.getenv("MODELING_AGENT_URL", "http://modeling-agent:8011")
@@ -144,40 +146,54 @@ def _call_predict(params: dict, m1_length: float, m2_length: float, thickness: f
     return body["data"]
 
 
+def _generate_explanation_bg(suggestion_id: str, context: dict):
+    """LLM 설명을 백그라운드에서 생성하고 SUGGESTIONS에 채워 넣는다 (응답 지연 방지)"""
+    explanation = generate_explanation(context)
+    suggestion = SUGGESTIONS.get(suggestion_id)
+    if suggestion is not None:
+        suggestion["llm_explanation"] = explanation
+        suggestion["llm_explanation_status"] = "ready"
+
+
 @app.post("/doe/suggest")
-def doe_suggest(req: DoeSuggestRequest):
-    """Auto DOE 다음 실험 조건을 제안한다 (레시피 존재 시 레시피값 사용)"""
+def doe_suggest(req: DoeSuggestRequest, background_tasks: BackgroundTasks):
+    """Auto DOE 다음 실험 조건을 제안한다 (레시피 존재 시 레시피값 사용)
+
+    LLM 설명(llm_explanation)은 생성 시간이 오래 걸려 백그라운드로 분리한다.
+    응답에는 일단 null로 내려가며, 프론트엔드는 /doe/explanation/{suggestion_id}로 결과를 조회한다.
+    """
     doe_attempt = len(req.experiment_history) + 1
+    history = [h.model_dump() for h in req.experiment_history]
 
     recipe, exact_match = recipe_db.find_recipe(req.m1_length, req.m2_length, req.m1_glass, req.m2_film, req.thickness)
     recipe_found = bool(exact_match)
 
     if recipe_found:
-        suggested_params = {
+        recipe_params = {
             "speed": recipe["opt_speed"],
             "defocus": recipe["opt_defocus"],
             "frequency": recipe["opt_frequency"],
             "power": recipe["opt_power"],
         }
+        # 이 레시피 조건으로 이미 실험했는데 OK가 아니었다면 레시피를 신뢰할 수 없으므로
+        # Bayesian Auto DOE 탐색으로 전환한다 (같은 제안 반복을 방지)
+        recipe_already_failed = any(
+            h["speed"] == recipe_params["speed"]
+            and h["defocus"] == recipe_params["defocus"]
+            and h["frequency"] == recipe_params["frequency"]
+            and h["power"] == recipe_params["power"]
+            and h["quality"] != "OK"
+            for h in history
+        )
+        if recipe_already_failed:
+            recipe_found = False
+            suggested_params = suggest_params(history)
+        else:
+            suggested_params = recipe_params
     else:
-        history = [h.model_dump() for h in req.experiment_history]
         suggested_params = suggest_params(history)
 
     pred = _call_predict(suggested_params, req.m1_length, req.m2_length, req.thickness)
-
-    llm_explanation = generate_explanation(
-        {
-            "m1_length": req.m1_length,
-            "m2_length": req.m2_length,
-            "speed": suggested_params["speed"],
-            "defocus": suggested_params["defocus"],
-            "frequency": suggested_params["frequency"],
-            "power": suggested_params["power"],
-            "pred_depth": pred["pred_depth"],
-            "pred_quality": pred["pred_quality"],
-            "doe_attempt": doe_attempt,
-        }
-    )
 
     suggestion_id = str(uuid.uuid4())
     SUGGESTIONS[suggestion_id] = {
@@ -190,7 +206,25 @@ def doe_suggest(req: DoeSuggestRequest):
         "pred": pred,
         "doe_attempt": doe_attempt,
         "recipe_found": recipe_found,
+        "llm_explanation": None,
+        "llm_explanation_status": "pending",
     }
+
+    background_tasks.add_task(
+        _generate_explanation_bg,
+        suggestion_id,
+        {
+            "m1_length": req.m1_length,
+            "m2_length": req.m2_length,
+            "speed": suggested_params["speed"],
+            "defocus": suggested_params["defocus"],
+            "frequency": suggested_params["frequency"],
+            "power": suggested_params["power"],
+            "pred_depth": pred["pred_depth"],
+            "pred_quality": pred["pred_quality"],
+            "doe_attempt": doe_attempt,
+        },
+    )
 
     return _response(
         True,
@@ -202,11 +236,26 @@ def doe_suggest(req: DoeSuggestRequest):
             "pred_quality": pred["pred_quality"],
             "confidence": pred["confidence"],
             "shap_values": pred["shap_values"],
-            "llm_explanation": llm_explanation,
+            "llm_explanation": None,
+            "llm_explanation_status": "pending",
             "doe_attempt": doe_attempt,
             "recipe_found": recipe_found,
         },
         f"{doe_attempt}차 파라미터 제안 완료",
+    )
+
+
+@app.get("/doe/explanation/{suggestion_id}")
+def get_doe_explanation(suggestion_id: str):
+    """백그라운드에서 생성 중인 LLM 설명 상태를 조회한다 (프론트엔드 폴링용)"""
+    suggestion = _get_suggestion(suggestion_id)
+    return _response(
+        True,
+        {
+            "llm_explanation": suggestion.get("llm_explanation"),
+            "status": suggestion.get("llm_explanation_status", "ready"),
+        },
+        "LLM 설명 상태 조회 완료",
     )
 
 
@@ -299,6 +348,45 @@ class DoeResultRequest(BaseModel):
     actual_kerf: float
     actual_depth: float
     operator_name: str
+    notes: str | None = None
+
+
+class DoeEvaluateRequest(BaseModel):
+    suggestion_id: str
+    actual_kerf: float
+    actual_depth: float
+
+
+@app.post("/doe/evaluate")
+def doe_evaluate(req: DoeEvaluateRequest):
+    """실측 결과(Kerf/Depth)를 예측값과 비교해 AI가 보고용 평가 메모 초안을 생성한다.
+
+    운영자는 생성된 초안을 결과 보고 화면의 설명란에서 수정/보완할 수 있다.
+    """
+    suggestion = _get_suggestion(req.suggestion_id)
+    params = suggestion["suggested_params"]
+    pred = suggestion["pred"]
+    quality = judge_quality(req.actual_depth)
+
+    evaluation = generate_result_evaluation(
+        {
+            "m1_length": suggestion["m1_length"],
+            "m2_length": suggestion["m2_length"],
+            "speed": params["speed"],
+            "defocus": params["defocus"],
+            "frequency": params["frequency"],
+            "power": params["power"],
+            "pred_kerf": pred["pred_kerf"],
+            "pred_depth": pred["pred_depth"],
+            "pred_quality": pred["pred_quality"],
+            "actual_kerf": req.actual_kerf,
+            "actual_depth": req.actual_depth,
+            "quality": quality,
+            "doe_attempt": suggestion["doe_attempt"],
+        }
+    )
+
+    return _response(True, {"quality": quality, "evaluation": evaluation}, "AI 평가 생성 완료")
 
 
 def _insert_experiment(suggestion: dict, req: DoeResultRequest, quality: str):
@@ -314,11 +402,11 @@ def _insert_experiment(suggestion: dict, req: DoeResultRequest, quality: str):
                 INSERT INTO experiments (
                     exp_no, m1_glass, m1_length_mm, m2_film, m2_length_mm, thickness_um,
                     speed, defocus, frequency, power,
-                    sensor_data_ok, kerf_um, depth_um, quality, quality_score
+                    sensor_data_ok, kerf_um, depth_um, quality, quality_score, notes
                 ) VALUES (
                     %s, %s, %s, %s, %s, %s,
                     %s, %s, %s, %s,
-                    TRUE, %s, %s, %s, %s
+                    TRUE, %s, %s, %s, %s, %s
                 )
                 ON CONFLICT (exp_no) DO NOTHING
                 """,
@@ -327,7 +415,7 @@ def _insert_experiment(suggestion: dict, req: DoeResultRequest, quality: str):
                     suggestion.get("m1_glass", "Glass"), suggestion["m1_length"],
                     suggestion.get("m2_film", "Film"), suggestion["m2_length"], suggestion["thickness"],
                     params["speed"], params["defocus"], params["frequency"], params["power"],
-                    req.actual_kerf, req.actual_depth, quality, QUALITY_SCORE.get(quality),
+                    req.actual_kerf, req.actual_depth, quality, QUALITY_SCORE.get(quality), req.notes,
                 ),
             )
         conn.commit()
@@ -360,6 +448,7 @@ def doe_result(req: DoeResultRequest):
             approved_by=req.operator_name,
             m1_glass=suggestion.get("m1_glass", "Glass"),
             m2_film=suggestion.get("m2_film", "Film"),
+            notes=req.notes,
         )
         approval.update_recipe_id(req.suggestion_id, recipe_id)
         recipe_saved = True
@@ -388,6 +477,79 @@ def get_recipes():
     """승인된 레시피 전체 목록 조회"""
     recipes = recipe_db.list_recipes()
     return _response(True, {"recipes": recipes, "total": len(recipes)}, "레시피 조회 완료")
+
+
+@app.get("/experiments")
+def get_experiments(
+    quality: str | None = None,
+    search: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+):
+    """실험 이력(experiments) 조회. quality 필터, exp_no/설명(notes) 검색, 페이지네이션 지원."""
+    conditions = []
+    params: list = []
+
+    if quality:
+        conditions.append("quality = %s")
+        params.append(quality)
+    if search:
+        conditions.append("(exp_no ILIKE %s OR notes ILIKE %s)")
+        like = f"%{search}%"
+        params.extend([like, like])
+
+    where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(f"SELECT COUNT(*) FROM experiments {where_clause}", params)
+            total = cur.fetchone()[0]
+
+            cur.execute(
+                f"""
+                SELECT id, exp_no, m1_glass, m1_length_mm, m2_film, m2_length_mm, thickness_um,
+                       speed, defocus, frequency, power, kerf_um, depth_um, quality, quality_score,
+                       notes, created_at
+                FROM experiments
+                {where_clause}
+                ORDER BY created_at DESC
+                LIMIT %s OFFSET %s
+                """,
+                params + [limit, offset],
+            )
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    experiments = [
+        {
+            "id": r[0],
+            "exp_no": r[1],
+            "m1_glass": r[2],
+            "m1_length": float(r[3]) if r[3] is not None else None,
+            "m2_film": r[4],
+            "m2_length": float(r[5]) if r[5] is not None else None,
+            "thickness": float(r[6]) if r[6] is not None else None,
+            "speed": float(r[7]) if r[7] is not None else None,
+            "defocus": float(r[8]) if r[8] is not None else None,
+            "frequency": float(r[9]) if r[9] is not None else None,
+            "power": float(r[10]) if r[10] is not None else None,
+            "kerf": float(r[11]) if r[11] is not None else None,
+            "depth": float(r[12]) if r[12] is not None else None,
+            "quality": r[13],
+            "quality_score": r[14],
+            "notes": r[15],
+            "created_at": r[16].isoformat() if r[16] else None,
+        }
+        for r in rows
+    ]
+
+    return _response(
+        True,
+        {"experiments": experiments, "total": total, "limit": limit, "offset": offset},
+        "실험 이력 조회 완료",
+    )
 
 
 @app.get("/recipes/{m1_length}/{m2_length}")

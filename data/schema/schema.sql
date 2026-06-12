@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS experiments (
     -- 이상값 플래그: Thickness > 140um
     is_outlier      BOOLEAN DEFAULT FALSE,
 
+    -- 운영자가 결과 보고 시 작성하는 설명/메모 (자유 입력)
+    notes           TEXT,
+
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -65,11 +68,48 @@ CREATE TABLE IF NOT EXISTS plasma_timeseries (
     channel         VARCHAR(50) NOT NULL,   -- 센서 채널명
     value           NUMERIC(14, 6) NOT NULL,-- 센서 측정값
 
+    -- Time 기준 가공 구간 (M1 / M2 / Blank, Plasma 신호로 2차 검증됨)
+    region          VARCHAR(10),
+
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_plasma_ts_experiment ON plasma_timeseries (experiment_id);
 CREATE INDEX IF NOT EXISTS idx_plasma_ts_ts ON plasma_timeseries (ts);
+
+-- ------------------------------------------------------------
+-- 3-1. plasma_measurements: Plasma CSV 1개(파일)당 메타데이터 + 예외 플래그 (Phase 6)
+--    plasma_parser.parse_plasma_csv()의 meta + detect_region() 결과를 1행으로 적재
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS plasma_measurements (
+    id              SERIAL PRIMARY KEY,
+
+    -- ZIP 내부 CSV 파일명(확장자 제외) -> experiments.exp_no 매칭 시도값
+    exp_no          VARCHAR(20) NOT NULL,
+    experiment_id   INTEGER REFERENCES experiments (id) ON DELETE CASCADE,
+
+    -- CSV 메타데이터(콜론 구분 줄)에서 추출
+    configuration   VARCHAR(100),
+    config_id       VARCHAR(50),
+    measurement_id  VARCHAR(50),
+    result          VARCHAR(50),
+    comment         TEXT,
+    measured_at     TIMESTAMPTZ,
+    duration_s      NUMERIC(10, 6),
+    sample_rate_hz  INTEGER,
+
+    -- 적재된 시계열 샘플 수 (다운샘플 후)
+    n_samples       INTEGER,
+
+    -- 예외 플래그 (detect_region 결과)
+    m1_measured     BOOLEAN,
+    m2_measured     BOOLEAN,
+    time_shifted    BOOLEAN,
+
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_plasma_measurements_exp_no ON plasma_measurements (exp_no);
 
 -- ------------------------------------------------------------
 -- 3. recipes: Auto DOE 제안 / 운영자 승인 레시피
@@ -104,6 +144,9 @@ CREATE TABLE IF NOT EXISTS recipes (
     approved_by     VARCHAR(50),
     approved_at     TIMESTAMPTZ,
     rejected_reason TEXT,
+
+    -- 운영자가 결과 보고 시 작성한 설명/메모 (experiments.notes에서 복사)
+    notes           TEXT,
 
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -219,3 +262,26 @@ INSERT INTO material_types (category, name, description) VALUES
     ('m1', 'Glass', 'POC 기본 M1 소재'),
     ('m2', 'Film', 'POC 기본 M2 소재')
 ON CONFLICT (category, name) DO NOTHING;
+
+-- ------------------------------------------------------------
+-- 10. chat_sessions / chat_messages: AI 채팅 이력 관리
+--     운영자가 AI 채팅창에서 나눈 대화를 세션 단위로 저장하고
+--     좌측 이력 목록에서 선택/재개할 수 있도록 한다
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    id          SERIAL PRIMARY KEY,
+    title       VARCHAR(200),           -- 첫 질문을 요약한 제목
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id          SERIAL PRIMARY KEY,
+    session_id  INTEGER NOT NULL REFERENCES chat_sessions (id) ON DELETE CASCADE,
+    role        VARCHAR(10) NOT NULL,   -- 'user' / 'assistant'
+    content     TEXT NOT NULL,
+    provider    VARCHAR(20),            -- 'ollama' / 'claude' / 'openai' (assistant 메시지만)
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages (session_id);

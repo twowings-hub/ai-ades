@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from excel_parser import parse_excel
 from influx_writer import write_to_influx
-from plasma_loader import load_plasma_to_postgres
+from plasma_loader import get_plasma_summary, load_to_db
 from plasma_parser import parse_plasma_zip
 from preprocessor import load_to_postgres
 
@@ -107,9 +107,14 @@ async def upload_data(file: UploadFile = File(...)):
     )
 
 
-@app.post("/data/plasma/upload")
+@app.post("/data/upload-plasma")
 async def upload_plasma(file: UploadFile = File(...)):
-    """Plasma 센서 ZIP 업로드 -> 파싱 -> plasma_timeseries 적재 (Phase 6)"""
+    """Plasma 센서 ZIP 업로드 -> 파싱(이중 구분자) -> 구간분리/다운샘플 -> plasma_timeseries 적재 (Phase 6)
+
+    - M1 미측정 / M1+M2 미측정 / 시간 구간 변동(time_shifted) / MeasurementID·Result 누락 등은
+      경고로 기록하고 부분 적재를 계속 진행한다.
+    - exp_no가 experiments에 없는 파일은 시계열 적재 없이 plasma_measurements에만 기록된다.
+    """
     if not file.filename.endswith(".zip"):
         raise HTTPException(status_code=400, detail="ZIP 파일(.zip)만 업로드 가능합니다")
 
@@ -118,18 +123,45 @@ async def upload_plasma(file: UploadFile = File(...)):
         tmp_path = tmp.name
 
     try:
-        df = parse_plasma_zip(tmp_path)
-        result = load_plasma_to_postgres(df)
+        parsed = parse_plasma_zip(tmp_path)
+
+        total_inserted = 0
+        unmatched_exp_no = []
+        warnings = {}
+        for item in parsed:
+            inserted = load_to_db(item["meta"], item["df"], item["flags"])
+            total_inserted += inserted
+            if inserted == 0:
+                unmatched_exp_no.append(item["exp_no"])
+            if item["warnings"]:
+                warnings[item["exp_no"]] = item["warnings"]
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"적재 실패: {exc}") from exc
     finally:
         os.remove(tmp_path)
 
-    message = f"{result['inserted']}건 적재 완료 ({result['matched_experiments']}개 실험)"
-    if result["unknown_exp_no"]:
-        message += f" / 미매칭 exp_no 건너뜀: {result['unknown_exp_no']}"
+    message = f"{len(parsed)}개 파일 처리 완료 (시계열 {total_inserted}행 적재)"
+    if unmatched_exp_no:
+        message += f" / 미매칭 exp_no: {unmatched_exp_no}"
+    if warnings:
+        message += f" / 경고 {len(warnings)}건"
 
-    return _response(True, result, message)
+    return _response(
+        True,
+        {
+            "files": len(parsed),
+            "inserted": total_inserted,
+            "unmatched_exp_no": unmatched_exp_no,
+            "warnings": warnings,
+        },
+        message,
+    )
+
+
+@app.get("/data/plasma-summary")
+def plasma_summary():
+    """Plasma 적재 현황 + 예외 케이스 건수 조회 (Phase 6)"""
+    return _response(True, get_plasma_summary(), "Plasma 적재 현황 조회 완료")
 
 
 @app.get("/data/summary")

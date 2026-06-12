@@ -130,6 +130,11 @@ GET  /health                 ← 서비스 상태
 ✗ 파일 한 개에 500줄 이상 작성 (분리할 것)
 ```
 
+### 화면 메뉴 변경 시 주의
+`frontend/src/components/Layout.jsx`의 네비게이션 메뉴를 추가/변경/삭제할 때는
+`services/execution-agent/chat.py`의 `SYSTEM_GUIDE`(AI 채팅이 사용법을 답변할 때 참조하는 메뉴 설명)도
+반드시 함께 업데이트할 것.
+
 ---
 
 ## 5. Phase별 진행 현황

@@ -6,6 +6,8 @@ import { useSession } from '../context/SessionContext'
 // 학습 데이터에 포함된 대표값 (빠른 선택용 프리셋). 그 외 값도 직접 입력 가능하다.
 const M1_PRESETS = [4, 10, 20]
 const M2_PRESETS = [10, 25, 50]
+// M1 입력 시 M2 length 기본값을 M1 × M2_RATIO로 자동 설정 (학습 데이터 기준 M2 = M1 × 2.5)
+const M2_RATIO = 2.5
 
 export default function ExperimentPage() {
   const navigate = useNavigate()
@@ -154,18 +156,18 @@ export default function ExperimentPage() {
 
   return (
     <div style={{ maxWidth: 640, margin: '0 auto' }}>
-      <h2>실험 조건 입력</h2>
-      <p style={{ color: 'var(--text-muted)' }}>
+      <h2 style={{ fontSize: 18, marginBottom: 2 }}>실험 조건 입력</h2>
+      <p style={{ color: 'var(--text-muted)', margin: '0 0 8px', fontSize: 13 }}>
         소재 조합과 두께를 입력하면 Auto DOE가 다음 실험 조건을 제안합니다.
       </p>
 
-      <div className="card" style={{ marginTop: 16 }}>
-        <h3>M1 소재 종류</h3>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div className="card card-compact" style={{ marginTop: 8 }}>
+        <h3 style={{ fontSize: 14, marginBottom: 6 }}>M1 소재 종류</h3>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
           {materialTypes.m1.map((t) => (
             <button
               key={t.id}
-              className={`btn ${m1Glass === t.name ? 'btn-primary' : ''}`}
+              className={`btn btn-sm ${m1Glass === t.name ? 'btn-primary' : ''}`}
               onClick={() => setM1Glass(t.name)}
               title={t.description ?? ''}
             >
@@ -177,41 +179,47 @@ export default function ExperimentPage() {
           )}
         </div>
 
-        <h3>M1 ({m1Glass ?? '-'}) Length</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <h3 style={{ fontSize: 14, marginBottom: 6 }}>M1 ({m1Glass ?? '-'}) Length</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
           <input
             type="number"
             step="0.1"
             value={m1Length ?? ''}
-            onChange={(e) => setM1Length(e.target.value === '' ? null : parseFloat(e.target.value))}
+            onChange={(e) => {
+              const v = e.target.value === '' ? null : parseFloat(e.target.value)
+              setM1Length(v)
+              setM2Length(v === null || Number.isNaN(v) ? null : v * M2_RATIO)
+            }}
             placeholder="예: 10"
-            style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 160 }}
+            style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, width: 140 }}
           />
           <span style={{ color: 'var(--text-muted)' }}>mm</span>
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: m1OutOfRange ? 8 : 20 }}>
-          {M1_PRESETS.map((v) => (
-            <button
-              key={v}
-              className={`btn ${m1Length === v ? 'btn-primary' : ''}`}
-              onClick={() => setM1Length(v)}
-            >
-              {v} mm
-            </button>
-          ))}
+          <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
+            {M1_PRESETS.map((v) => (
+              <button
+                key={v}
+                className={`btn btn-sm ${m1Length === v ? 'btn-selected' : ''}`}
+                onClick={() => { setM1Length(v); setM2Length(v * M2_RATIO) }}
+              >
+                {v} mm
+              </button>
+            ))}
+          </div>
         </div>
         {m1OutOfRange && (
-          <p style={{ color: 'var(--warn, #b45309)', marginBottom: 20, fontSize: '0.9em' }}>
+          <p style={{ color: 'var(--warn, #b45309)', marginTop: 6, fontSize: '0.85em' }}>
             ⚠ 학습 데이터 범위({dataRanges.m1_length_mm.min}~{dataRanges.m1_length_mm.max}mm)를 벗어났습니다. 예측 신뢰도가 낮을 수 있습니다 (Auto DOE 탐색 횟수 증가 권장).
           </p>
         )}
+      </div>
 
-        <h3>M2 소재 종류</h3>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+      <div className="card card-compact" style={{ marginTop: 8 }}>
+        <h3 style={{ fontSize: 14, marginBottom: 6 }}>M2 소재 종류</h3>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
           {materialTypes.m2.map((t) => (
             <button
               key={t.id}
-              className={`btn ${m2Film === t.name ? 'btn-primary' : ''}`}
+              className={`btn btn-sm ${m2Film === t.name ? 'btn-primary' : ''}`}
               onClick={() => setM2Film(t.name)}
               title={t.description ?? ''}
             >
@@ -223,59 +231,66 @@ export default function ExperimentPage() {
           )}
         </div>
 
-        <h3>M2 ({m2Film ?? '-'}) Length</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+        <h3 style={{ fontSize: 14, marginBottom: 6 }}>M2 ({m2Film ?? '-'}) Length</h3>
+        <p style={{ color: 'var(--text-muted)', margin: '0 0 6px', fontSize: '0.85em' }}>
+          M1 입력 시 M1 × {M2_RATIO}로 자동 설정됩니다. 필요하면 직접 수정하세요.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
           <input
             type="number"
             step="0.1"
             value={m2Length ?? ''}
             onChange={(e) => setM2Length(e.target.value === '' ? null : parseFloat(e.target.value))}
             placeholder="예: 25"
-            style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 160 }}
+            style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, width: 140 }}
           />
           <span style={{ color: 'var(--text-muted)' }}>mm</span>
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: m2OutOfRange ? 8 : 20 }}>
-          {M2_PRESETS.map((v) => (
-            <button
-              key={v}
-              className={`btn ${m2Length === v ? 'btn-primary' : ''}`}
-              onClick={() => setM2Length(v)}
-            >
-              {v} mm
-            </button>
-          ))}
+          <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
+            {M2_PRESETS.map((v) => (
+              <button
+                key={v}
+                className={`btn btn-sm ${m2Length === v ? 'btn-selected' : ''}`}
+                onClick={() => setM2Length(v)}
+              >
+                {v} mm
+              </button>
+            ))}
+          </div>
         </div>
         {m2OutOfRange && (
-          <p style={{ color: 'var(--warn, #b45309)', marginBottom: 20, fontSize: '0.9em' }}>
+          <p style={{ color: 'var(--warn, #b45309)', marginTop: 6, fontSize: '0.85em' }}>
             ⚠ 학습 데이터 범위({dataRanges.m2_length_mm.min}~{dataRanges.m2_length_mm.max}mm)를 벗어났습니다. 예측 신뢰도가 낮을 수 있습니다 (Auto DOE 탐색 횟수 증가 권장).
           </p>
         )}
+      </div>
 
-        <h3>Thickness (실측값)</h3>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: thicknessOutOfRange ? 8 : 20 }}>
+      <div className="card card-compact" style={{ marginTop: 8 }}>
+        <h3 style={{ fontSize: 14, marginBottom: 6 }}>Thickness (실측값)</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <input
             type="number"
             step="0.1"
             value={thickness}
             onChange={(e) => setThickness(e.target.value)}
             placeholder="예: 105.0"
-            style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 160 }}
+            style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, width: 140 }}
           />
           <span style={{ color: 'var(--text-muted)' }}>μm</span>
         </div>
         {thicknessOutOfRange && (
-          <p style={{ color: 'var(--warn, #b45309)', marginBottom: 20, fontSize: '0.9em' }}>
+          <p style={{ color: 'var(--warn, #b45309)', marginTop: 6, fontSize: '0.85em' }}>
             ⚠ 학습 데이터 범위({dataRanges.thickness_um.min}~{dataRanges.thickness_um.max}μm)를 벗어났습니다. 예측 신뢰도가 낮을 수 있습니다 (Auto DOE 탐색 횟수 증가 권장).
           </p>
         )}
+      </div>
 
+      <div className="card card-compact" style={{ marginTop: 8 }}>
         {materialInfoLoading && (
-          <p style={{ color: 'var(--text-muted)', marginBottom: 12 }}>소재 이력 조회 중...</p>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 8, fontSize: 13 }}>소재 이력 조회 중...</p>
         )}
 
         {!materialInfoLoading && materialInfo && (
-          <div className={`banner ${materialInfo.recipeStatus === 'exact' ? 'banner-success' : 'banner-info'}`} style={{ marginBottom: 16 }}>
+          <div className={`banner ${materialInfo.recipeStatus === 'exact' ? 'banner-success' : 'banner-info'}`} style={{ marginBottom: 8, padding: '8px 12px', fontSize: 13 }}>
             <p>이 소재 조합({m1Glass} {m1Length}mm + {m2Film} {m2Length}mm) 학습 데이터: {materialInfo.count}건</p>
             {materialInfo.recipeStatus === 'exact' && (
               <p style={{ marginTop: 4 }}>✅ 검증된 레시피 보유 (Thickness 일치) — 1회 확인 실험으로 완료 가능</p>
@@ -289,23 +304,23 @@ export default function ExperimentPage() {
           </div>
         )}
 
-        {error && <div className="banner banner-warning">{error}</div>}
+        {error && <div className="banner banner-warning" style={{ padding: '8px 12px', fontSize: 13 }}>{error}</div>}
 
         {recipeBanner && (
-          <div className="banner banner-info">
+          <div className="banner banner-info" style={{ padding: '8px 12px', fontSize: 13 }}>
             저장된 레시피가 있습니다. 바로 적용하시겠습니까?
-            <div style={{ marginTop: 10 }}>
-              <button className="btn btn-primary" onClick={() => navigate('/approval')}>
+            <div style={{ marginTop: 8 }}>
+              <button className="btn btn-primary btn-sm" onClick={() => navigate('/approval')}>
                 AI 제안 확인하기
               </button>
             </div>
           </div>
         )}
 
-        <button className="btn btn-primary" disabled={!canSubmit} onClick={handleStart} style={{ width: '100%', padding: '12px 0' }}>
+        <button className="btn btn-primary" disabled={!canSubmit} onClick={handleStart} style={{ width: '100%', padding: '10px 0', marginTop: 4 }}>
           {loading ? (
             <>
-              <span className="spinner" /> 예측 중... (약 2초 소요)
+              <span className="spinner" /> 예측 중...
             </>
           ) : (
             'Auto DOE 시작'

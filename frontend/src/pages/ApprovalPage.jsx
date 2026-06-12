@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { executionApi } from '../api/client'
@@ -18,9 +18,25 @@ const QUALITY_PILL = {
   NG: 'pill-danger',
 }
 
+// SHAP 그래프의 feature 키를 사람이 읽기 쉬운 한국어 이름으로 변환
+const FEATURE_LABELS = {
+  speed: 'Speed',
+  defocus: 'Defocus',
+  frequency: 'Frequency',
+  power: 'Power',
+  thickness: 'Thickness',
+  m1_length: 'M1 Length',
+  m2_length: 'M2 Length',
+  energy_density: '에너지 밀도',
+  normalized_power: '정규화 Power',
+  power_x_defocus: 'Power×Defocus',
+  freq_x_power: 'Frequency×Power',
+  thickness_ratio: 'Thickness 비율',
+}
+
 export default function ApprovalPage() {
   const navigate = useNavigate()
-  const { session, setApproval } = useSession()
+  const { session, setSuggestion, setApproval } = useSession()
   const suggestion = session.suggestion
 
   const [editing, setEditing] = useState(false)
@@ -30,6 +46,26 @@ export default function ApprovalPage() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  // LLM 설명은 백그라운드에서 생성되므로 완료될 때까지 폴링한다
+  useEffect(() => {
+    if (!suggestion || suggestion.llm_explanation_status !== 'pending') return
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await executionApi.get(`/doe/explanation/${suggestion.suggestion_id}`)
+        const { llm_explanation, status } = res.data.data
+        if (status === 'ready') {
+          setSuggestion({ ...suggestion, llm_explanation, llm_explanation_status: status })
+          clearInterval(interval)
+        }
+      } catch {
+        clearInterval(interval)
+      }
+    }, 2000)
+
+    return () => clearInterval(interval)
+  }, [suggestion, setSuggestion])
 
   if (!suggestion) {
     return (
@@ -180,9 +216,18 @@ export default function ApprovalPage() {
               minHeight: 120,
               whiteSpace: 'pre-wrap',
               color: suggestion.llm_explanation ? 'var(--text)' : 'var(--text-muted)',
+              display: 'flex',
+              alignItems: suggestion.llm_explanation_status === 'pending' ? 'center' : 'flex-start',
+              gap: 8,
             }}
           >
-            {suggestion.llm_explanation || 'LLM 설명을 생성하지 못했습니다.'}
+            {suggestion.llm_explanation_status === 'pending' ? (
+              <>
+                <span className="spinner" /> AI 설명 생성 중...
+              </>
+            ) : (
+              suggestion.llm_explanation || 'LLM 설명을 생성하지 못했습니다.'
+            )}
           </div>
 
           <div style={{ display: 'flex', gap: 8, marginTop: 24 }}>
@@ -209,6 +254,45 @@ export default function ApprovalPage() {
               </>
             )}
           </div>
+
+          <div
+            style={{
+              background: 'var(--bg)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              padding: 14,
+              marginTop: 24,
+              fontSize: 13,
+              color: 'var(--text-muted)',
+            }}
+          >
+            <h3 style={{ fontSize: 14, color: 'var(--text)', marginBottom: 8 }}>결과 해석 가이드</h3>
+            <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
+              <li><strong>예측 Kerf / Depth</strong>: AI 제안 파라미터로 가공했을 때 예상되는 절단폭(Kerf)과 가공 깊이(Depth)입니다. Depth는 0μm 초과 ~ 25μm 이하일 때 OK로 판정됩니다.</li>
+              <li><strong>예측 판정</strong>: 예측 Depth를 기준으로 OK / 미가공(과소 가공) / 과가공 / NG 중 하나로 자동 분류한 결과입니다.</li>
+              <li><strong>신뢰도</strong>: AI 모델이 위 판정을 얼마나 확신하는지를 나타내는 값입니다. 낮을수록 실제 결과와 차이가 날 수 있습니다.</li>
+              <li><strong>SHAP 영향도 그래프</strong>: 각 파라미터(또는 조합 변수)가 예측 Depth를 얼마나, 어느 방향으로 바꾸는지를 보여줍니다. 막대가 오른쪽(파란색, 양수)이면 Depth를 늘리는 방향, 왼쪽(빨간색, 음수)이면 줄이는 방향으로 작용했다는 의미이며, 막대가 길수록 영향이 큽니다.</li>
+            </ul>
+          </div>
+
+          {shapData.length > 0 && (
+            <div
+              style={{
+                background: 'var(--text)',
+                color: '#fff',
+                borderRadius: 8,
+                padding: 14,
+                marginTop: 12,
+                fontSize: 13,
+              }}
+            >
+              <h3 style={{ fontSize: 14, color: '#fff', marginBottom: 8 }}>이번 제안 해석</h3>
+              <p style={{ margin: 0, lineHeight: 1.6 }}>
+                이번 제안에서는 <strong>{FEATURE_LABELS[shapData[0].feature] ?? shapData[0].feature}</strong>가 Depth 예측에 가장 큰 영향을 주었습니다
+                ({shapData[0].value >= 0 ? 'Depth를 늘리는 방향' : 'Depth를 줄이는 방향'}).
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

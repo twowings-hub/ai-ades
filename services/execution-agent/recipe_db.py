@@ -14,7 +14,7 @@ _RECIPE_COLUMNS = """
     id, m1_glass, m1_length_mm, m2_film, m2_length_mm, thickness_um,
     speed, defocus, frequency, power,
     pred_kerf_um, pred_depth_um, pred_quality, confidence,
-    doe_attempts, approved_by, created_at
+    doe_attempts, approved_by, created_at, notes
 """
 
 
@@ -37,6 +37,7 @@ def _to_dict(row) -> dict:
         "doe_attempts": row[14],
         "approved_by": row[15],
         "created_at": row[16].isoformat() if row[16] else None,
+        "notes": row[17],
     }
 
 
@@ -123,6 +124,7 @@ def save_recipe(
     approved_by: str,
     m1_glass: str = "Glass",
     m2_film: str = "Film",
+    notes: str | None = None,
 ) -> int:
     """OK 판정 시 새 레시피를 저장하고 recipe id를 반환한다."""
     conn = get_connection()
@@ -134,12 +136,12 @@ def save_recipe(
                     m1_glass, m1_length_mm, m2_film, m2_length_mm, thickness_um,
                     speed, defocus, frequency, power,
                     pred_kerf_um, pred_depth_um, pred_quality, confidence,
-                    doe_attempts, status, approved_by, approved_at
+                    doe_attempts, status, approved_by, approved_at, notes
                 ) VALUES (
                     %s, %s, %s, %s, %s,
                     %s, %s, %s, %s,
                     %s, %s, %s, %s,
-                    %s, 'approved', %s, NOW()
+                    %s, 'approved', %s, NOW(), %s
                 )
                 RETURNING id
                 """,
@@ -147,7 +149,7 @@ def save_recipe(
                     m1_glass, m1_length, m2_film, m2_length, thickness,
                     params["speed"], params["defocus"], params["frequency"], params["power"],
                     pred.get("pred_kerf"), pred.get("pred_depth"), pred.get("pred_quality"), pred.get("confidence"),
-                    doe_attempts, approved_by,
+                    doe_attempts, approved_by, notes,
                 ),
             )
             recipe_id = cur.fetchone()[0]

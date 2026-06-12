@@ -6,6 +6,8 @@ import ApprovalPage from './pages/ApprovalPage'
 import ResultPage from './pages/ResultPage'
 import AdminPage from './pages/AdminPage'
 import RecipeSearchPage from './pages/RecipeSearchPage'
+import ExperimentHistoryPage from './pages/ExperimentHistoryPage'
+import ChatPage from './pages/ChatPage'
 
 function App() {
   return (
@@ -18,6 +20,8 @@ function App() {
             <Route path="/result" element={<ResultPage />} />
             <Route path="/admin" element={<AdminPage />} />
             <Route path="/recipes" element={<RecipeSearchPage />} />
+            <Route path="/history" element={<ExperimentHistoryPage />} />
+            <Route path="/chat" element={<ChatPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

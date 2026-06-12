@@ -10,7 +10,7 @@ import os
 
 import pandas as pd
 import torch
-from botorch.acquisition import ExpectedImprovement
+from botorch.acquisition import LogExpectedImprovement
 from botorch.fit import fit_gpytorch_mll
 from botorch.models import SingleTaskGP
 from botorch.optim import optimize_acqf
@@ -137,7 +137,7 @@ def suggest_params(experiment_history: list) -> dict:
     mll = ExactMarginalLogLikelihood(model.likelihood, model)
     fit_gpytorch_mll(mll)
 
-    acq = ExpectedImprovement(model, best_f=train_Y.max(), maximize=True)
+    acq = LogExpectedImprovement(model, best_f=train_Y.max(), maximize=True)
     bounds = torch.tensor([[0.0] * 4, [1.0] * 4], dtype=torch.double)
     candidate, _ = optimize_acqf(
         acq_function=acq,

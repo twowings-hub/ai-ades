@@ -21,7 +21,6 @@ from feature_engineering import (
     build_feature_dataframe,
     build_features_for_input,
 )
-from llm_explainer import generate_explanation
 from lstm_model import (
     LSTMAutoencoder,
     compute_reconstruction_error,
@@ -241,16 +240,6 @@ def predict(req: PredictRequest):
 
     shap_values = explain_instance(STATE["depth_model"], X)
 
-    llm_explanation = generate_explanation(
-        {
-            "m1_length": req.m1_length,
-            "m2_length": req.m2_length,
-            "shap_dict": shap_values,
-            "pred_depth": round(pred_depth, 2),
-            "pred_quality": pred_quality,
-        }
-    )
-
     return _response(
         True,
         {
@@ -259,7 +248,6 @@ def predict(req: PredictRequest):
             "pred_quality": pred_quality,
             "confidence": round(confidence, 4),
             "shap_values": shap_values,
-            "llm_explanation": llm_explanation,
         },
         "예측 완료",
     )

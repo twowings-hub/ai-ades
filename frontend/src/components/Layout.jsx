@@ -23,6 +23,7 @@ export default function Layout() {
         }}
       >
         <div style={{ fontWeight: 700, fontSize: 18 }}>AI-ADES</div>
+        {/* 메뉴 추가/변경 시 services/execution-agent/chat.py의 SYSTEM_GUIDE도 함께 업데이트할 것 */}
         <nav style={{ display: 'flex', gap: 8 }}>
           <NavLink to="/" style={navStyle} end>
             실험 조건
@@ -35,6 +36,12 @@ export default function Layout() {
           </NavLink>
           <NavLink to="/recipes" style={navStyle}>
             레시피 조회
+          </NavLink>
+          <NavLink to="/history" style={navStyle}>
+            실험 이력
+          </NavLink>
+          <NavLink to="/chat" style={navStyle}>
+            AI 채팅
           </NavLink>
           <NavLink to="/admin" style={navStyle}>
             관리자

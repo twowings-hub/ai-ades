@@ -277,3 +277,89 @@
 - Phase 6 4번째 항목(설비 통신 드라이버 추상화: OPC-UA/RS-232/Ethernet 등)은 고객사 사전 미팅에서 프로토콜·파라미터 노출 범위·Kerf/Depth 측정 가능 여부·Plasma 파일 규격 확인 후 착수
 - Plasma 관련 placeholder(타임스탬프 계산, 파일명=exp_no 가정, split_segments 3분할) 실데이터 확인 후 정정
 - 본 세션 변경사항(Phase 6 사전 준비 3종)은 아직 git commit 미완료
+
+---
+
+## 결과 보고 UX 개선 + Plasma 파서 완성 + 실험 이력 조회 (2026-06-12)
+
+### 1. 결과 보고 화면 — 실험 결과 설명란(notes) 추가
+- `data/schema/schema.sql` / `experiments` 테이블: `notes` 컬럼 추가
+- `services/execution-agent/recipe_db.py`: `save_recipe()`에 `notes` 파라미터 추가, 레시피 저장/조회 시 `notes` 포함
+- `services/execution-agent/main.py`: `DoeResultRequest`/`_insert_experiment`에 `notes` 추가
+- `frontend/src/pages/ResultPage.jsx`: 실험 결과 설명(보고용) 입력란(textarea) 추가, 저장 시 함께 전송
+
+### 2. Plasma CSV 파서 완성 (수정판, Phase 6-1)
+- `services/data-prep-agent/plasma_parser.py` 전면 재작성
+  - 콤마/세미콜론 이중 구분자 형식(메타데이터: `:`, 시계열: `;`, 헤더 `Index;Time...`) 파싱
+  - `detect_region()`: Time 임계값 + Plasma 신호 검증으로 M1/M2/Blank 구간 자동 분류, M1/M2 미측정·time_shifted 플래그 산출
+  - `downsample()`: `PLASMA_DOWNSAMPLE_FACTOR`(기본 100) 단위 행 스트라이드 다운샘플링
+  - `parse_plasma_zip()`: ZIP 내 CSV 전체를 파싱해 `{exp_no, meta, df, flags, warnings}` 리스트 반환
+- `services/data-prep-agent/plasma_loader.py` 전면 재작성
+  - `plasma_timeseries`에 `region` 컬럼 추가 반영, `plasma_measurements`(측정 메타: configuration/result/comment/duration/sample_rate 등) 테이블 신규
+  - `load_to_db()`: exp_no→experiment_id 매칭 후 시계열 batch insert + 측정 메타 insert
+  - `get_plasma_summary()`: 전체 파일 수, 미매칭 exp_no, M1/M2 미측정·time_shifted 건수, 총 샘플 수 집계
+- `services/data-prep-agent/main.py`: `POST /data/upload-plasma`(zip 업로드→파싱→적재, 결과/경고 집계), `GET /data/plasma-summary` 신규
+- `data/schema/schema.sql`: `plasma_timeseries.region` 컬럼, `plasma_measurements` 테이블 + 인덱스 추가
+- `.env`/`.env.example`: `PLASMA_M1_END_S`, `PLASMA_M2_END_S`, `PLASMA_EXPECTED_DURATION_S`, `PLASMA_TIME_TOLERANCE_S`, `PLASMA_DETECT_THRESHOLD`, `PLASMA_DOWNSAMPLE_FACTOR` 추가
+- `data/test/generate_plasma_test_zip.py` 재작성: 25,000행(250kHz, 0.1s) 5개 테스트 케이스(정상/M1 미측정/M1+M2 미측정/time_shifted/메타 누락)
+- 검증: 재생성한 테스트 ZIP 업로드 → 경고/카운트 정상 (m1_not_measured=2, m2_not_measured=1, time_shifted=1, total_samples=7875)
+
+### 3. AI 평가 자동 입력 (결과 설명란 초안 생성)
+- `services/execution-agent/llm_explainer.py`
+  - `RESULT_PROMPT_TEMPLATE` 추가 (예측값 vs 실측값 비교 + 판정 결과를 2~3문장 보고용 메모로 작성)
+  - 공통 `_call_llm()` 디스패처로 ollama/claude/openai 호출 통합, `generate_explanation`/`generate_result_evaluation` 모두 사용
+- `services/execution-agent/main.py`: `POST /doe/evaluate` 신규 — 실측 Kerf/Depth와 예측값을 비교해 AI 평가 메모 초안 생성
+- `frontend/src/pages/ResultPage.jsx`
+  - Kerf/Depth 입력 완료(blur) 시 설명란이 비어있으면 AI 평가를 자동 생성, "AI 평가로 채우기" 버튼으로 수동 재생성도 가능
+  - 생성된 초안은 운영자가 자유롭게 수정/보완 가능
+
+### 4. AI 평가 생성 진행 상황 표시
+- `frontend/src/index.css`: `.progress-bar`/`.progress-bar-fill` 추가 (width 기반, `transition: width 0.3s linear`)
+- `frontend/src/pages/ResultPage.jsx`: 경과 시간(`evalElapsedMs`, 200ms 간격) 대비 예상 소요시간(8초) 기준으로 진행률(%)·예상 남은 시간을 점진적으로 표시
+  - (1차 시도: CSS sweep 애니메이션 → "너무 빨리 움직여 정신없다"는 피드백으로 점진적 진행률 표시로 변경)
+
+### 5. 실험 이력 조회 페이지 신규
+- `services/execution-agent/main.py`: `GET /experiments` 신규 — `quality`(판정)/`search`(실험번호·설명 ILIKE)/`limit`/`offset` 필터·페이지네이션 지원, `notes` 포함 전체 컬럼 반환
+- `frontend/src/pages/ExperimentHistoryPage.jsx` 신규
+  - 판정 필터(전체/OK/미가공/과가공/NG) + 실험번호/설명 검색 + 페이지네이션
+  - 각 실험을 카드로 표시: 좌측에 **입력값(M1/M2/Thickness) / 가공 조건(Speed·Defocus·Frequency·Power) / 측정 결과(Kerf·Depth)** 3개 컬럼 그룹, 우측에 설명(보고용)란을 최대한 넓게 배치
+- `frontend/src/App.jsx`, `frontend/src/components/Layout.jsx`: `/history` 라우트 및 "실험 이력" 메뉴 추가
+- 검증: execution-agent 재빌드 후 `/experiments` 필터(quality/search) 정상 동작 확인 (전체 341건)
+
+### 6. AI 제안 승인 화면 — 결과 해석 가이드 분리
+- `frontend/src/pages/ApprovalPage.jsx`: "결과 해석 가이드"는 일반 설명으로 유지하고, **이번 제안의 SHAP 해석("이번 제안 해석")**은 진한 배경의 별도 박스로 분리 표시
+
+### 다음 단계
+- 본 세션 변경사항 및 직전 세션의 Phase 6 사전 준비 3종 모두 git commit 미완료 (services/, frontend/, data/schema/, .env.example 등 다수 변경)
+- Phase 4 E2E 통합테스트 잔여
+- Plasma 실데이터 확인 후 region 판별 임계값(M1_END_S/M2_END_S/DETECT_THRESHOLD) 재조정 필요
+
+---
+
+## AI 채팅 — 이력 관리(좌측 사이드바) + 영어 용어 표기 개선 (2026-06-12)
+
+### 1. AI 채팅 이력(세션) 관리
+- `data/schema/schema.sql`: `chat_sessions`(세션, 제목/생성·수정시각), `chat_messages`(세션별 user/assistant 메시지, provider) 테이블 신규 + 인덱스 추가, `ades_db`에 직접 적용
+- `services/execution-agent/chat_history.py` 신규: 세션 생성(`create_session`, 첫 질문으로 제목 생성)/조회(`list_sessions`, `get_messages`)/갱신(`touch_session`)/삭제(`delete_session`)
+- `services/execution-agent/chat_routes.py` 신규(APIRouter): `POST /chat`(세션 단위 이력 저장), `GET /chat/sessions`, `GET /chat/sessions/{id}`, `DELETE /chat/sessions/{id}`
+- `services/execution-agent/main.py`: 기존 `/chat*` 엔드포인트 제거 후 `chat_routes` 라우터로 이전 (627줄 → 577줄, 500줄 제한에는 여전히 초과 — 추후 추가 분리 필요)
+- `frontend/src/pages/ChatPage.jsx`: 좌측에 채팅 이력 목록(claude.ai 스타일) 추가
+  - "+ 새 채팅" 버튼으로 새 세션 시작
+  - 이력 클릭 시 해당 세션의 대화 불러오기, × 버튼으로 삭제
+  - `handleSend`를 신규 API 계약(`{session_id, message, provider}` → `{session_id, reply}`)에 맞게 재작성
+- 검증: execution-agent 재빌드 후 세션 생성/이어가기(대화 맥락 유지)/조회/삭제 curl 테스트 모두 정상
+
+### 2. AI 채팅 — 영어 용어(M1/M2, Speed 등) 표기 개선
+- `services/execution-agent/chat.py`의 `CHAT_SYSTEM_TEMPLATE` 답변 규칙 수정: 문장은 한국어로 작성하되 M1/M2, Speed/Defocus/Frequency/Power, Depth/Kerf, OK 등 소재·파라미터·판정 명칭은 영어 표기 그대로 사용(예: "엠원" 대신 "M1"), 한자/중국어는 계속 금지
+- 검증: execution-agent 재빌드 후 Claude 응답에서 Glass/Film/Speed/Defocus/Frequency/Power/Depth/Kerf/OK가 영어 표기로 정상 출력됨을 확인
+
+### 3. 참고 (Q&A, 코드 변경 없음)
+- 채팅 이력 저장 위치: PostgreSQL `ades_db`(`chat_sessions`/`chat_messages`), `pm-postgres` 컨테이너의 Docker 볼륨(`rag-pm-matcher_pm_postgres_data`)에 영구 저장 — 재부팅/컨테이너 재시작에도 유지, 볼륨 삭제 시에만 소실
+- 관리자 LLM 선택(`/admin/llm/switch`, `_STATE["provider"]`)과 채팅창 LLM 선택(요청별 `provider`, 기본값 `CHAT_LLM_PROVIDER`)은 서로 완전히 독립적으로 동작
+
+### 4. 브라우저 탭 제목 변경
+- `frontend/index.html`: `<title>`을 "frontend" → "AI-ADES"로 변경
+
+### 다음 단계
+- 본 세션 변경사항도 git commit 미완료 (이전 세션 변경사항 포함 다수 누적)
+- main.py 500줄 제한 초과(577줄) 추가 분리 검토

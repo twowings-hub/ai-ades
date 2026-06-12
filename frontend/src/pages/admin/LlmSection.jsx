@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { executionApi } from '../../api/client'
 
 export default function LlmSection() {
-  const [models, setModels] = useState({ ollama: [], api: {} })
+  const [models, setModels] = useState({ ollama: [], api: {}, current: null })
   const [provider, setProvider] = useState('ollama')
   const [model, setModel] = useState('')
   const [error, setError] = useState(null)
@@ -33,6 +33,7 @@ export default function LlmSection() {
     try {
       const res = await executionApi.post('/admin/llm/switch', { provider, model })
       setSwitchResult(res.data)
+      setModels((prev) => ({ ...prev, current: res.data.data }))
     } catch (err) {
       setError(err.response?.data?.message || err.message)
     } finally {
@@ -58,6 +59,15 @@ export default function LlmSection() {
     <div>
       <h2>LLM 모델 선택</h2>
       {error && <div className="banner banner-warning">{error}</div>}
+
+      {models.current && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3>현재 적용 중인 모델</h3>
+          <p style={{ fontSize: 15 }}>
+            <strong>{models.current.provider}</strong> / <strong>{models.current.model}</strong>
+          </p>
+        </div>
+      )}
 
       <div className="card">
         <h3>프로바이더 / 모델 전환</h3>
