@@ -44,6 +44,11 @@ export default function ApprovalPage() {
   const [showRejectModal, setShowRejectModal] = useState(false)
   const [rejectReason, setRejectReason] = useState('')
 
+  // 수정 후 승인 시 재예측 결과 (없으면 AI 최초 제안값을 사용)
+  const [predOverride, setPredOverride] = useState(null)
+  const [lastPredictedParams, setLastPredictedParams] = useState(suggestion?.suggested_params ?? {})
+  const [repredictLoading, setRepredictLoading] = useState(false)
+
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -78,7 +83,19 @@ export default function ApprovalPage() {
     )
   }
 
-  const shapData = Object.entries(suggestion.shap_values ?? {})
+  // 재예측 결과가 있으면 그 값을, 없으면 AI 최초 제안의 예측값을 화면에 표시한다
+  const displayPred = predOverride ?? {
+    pred_kerf: suggestion.pred_kerf,
+    pred_depth: suggestion.pred_depth,
+    pred_quality: suggestion.pred_quality,
+    confidence: suggestion.confidence,
+    shap_values: suggestion.shap_values,
+  }
+
+  // 수정 모드에서 마지막 재예측 시점의 값과 현재 입력값이 다르면 "재예측 필요" 경고를 표시한다
+  const isStale = editing && JSON.stringify(editedParams) !== JSON.stringify(lastPredictedParams)
+
+  const shapData = Object.entries(displayPred.shap_values ?? {})
     .slice(0, 5)
     .map(([feature, value]) => ({ feature, value }))
     .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
@@ -96,11 +113,32 @@ export default function ApprovalPage() {
         ...res.data.data,
         final_params: paramsOverride ?? suggestion.suggested_params,
       })
+      // 재예측을 했다면, 결과 보고 화면의 샘플값도 재예측 결과를 기준으로 채워지도록 갱신
+      if (predOverride) {
+        setSuggestion({ ...suggestion, ...predOverride })
+      }
       navigate('/result')
     } catch (err) {
       setError(err.response?.data?.message || err.message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRepredict = async () => {
+    setRepredictLoading(true)
+    setError(null)
+    try {
+      const res = await executionApi.post('/doe/repredict', {
+        suggestion_id: suggestion.suggestion_id,
+        params: editedParams,
+      })
+      setPredOverride(res.data.data)
+      setLastPredictedParams(editedParams)
+    } catch (err) {
+      setError(err.response?.data?.message || err.message)
+    } finally {
+      setRepredictLoading(false)
     }
   }
 
@@ -130,63 +168,92 @@ export default function ApprovalPage() {
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
         {/* 좌측 패널 */}
         <div className="card" style={{ flex: 1 }}>
-          <h3>AI 제안 파라미터</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>항목</th>
-                <th>값</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(PARAM_LABELS).map(([key, label]) => (
-                <tr key={key}>
-                  <td>{label}</td>
-                  <td>
-                    {editing ? (
-                      <input
-                        type="number"
-                        step="0.1"
-                        value={editedParams[key]}
-                        onChange={(e) =>
-                          setEditedParams((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
-                        }
-                        style={{ width: 120, padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 4 }}
-                      />
-                    ) : (
-                      editedParams[key]
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{ display: 'flex', flexWrap: 'wrap' }}>
+            <div style={{ paddingRight: 32 }}>
+              <h3>AI 제안 파라미터</h3>
+              <table className="kv-table kv-table--params">
+                <thead>
+                  <tr>
+                    <th>항목</th>
+                    <th>값</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(PARAM_LABELS).map(([key, label]) => (
+                    <tr key={key}>
+                      <td>{label}</td>
+                      <td>
+                        {editing ? (
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={editedParams[key]}
+                            onChange={(e) =>
+                              setEditedParams((prev) => ({ ...prev, [key]: parseFloat(e.target.value) }))
+                            }
+                            style={{
+                              width: '100%',
+                              textAlign: 'right',
+                              border: 'none',
+                              background: 'transparent',
+                              padding: 0,
+                              margin: 0,
+                              fontSize: 'inherit',
+                              fontFamily: 'inherit',
+                              color: 'inherit',
+                              boxShadow: 'inset 0 -1px 0 0 var(--border)',
+                            }}
+                          />
+                        ) : (
+                          editedParams[key]
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
-          <h3 style={{ marginTop: 24 }}>예측 결과</h3>
-          <table>
-            <tbody>
-              <tr>
-                <td>예측 Kerf</td>
-                <td>{suggestion.pred_kerf} μm</td>
-              </tr>
-              <tr>
-                <td>예측 Depth</td>
-                <td>{suggestion.pred_depth} μm</td>
-              </tr>
-              <tr>
-                <td>예측 판정</td>
-                <td>
-                  <span className={`pill ${QUALITY_PILL[suggestion.pred_quality] ?? 'pill-muted'}`}>
-                    {suggestion.pred_quality}
-                  </span>
-                </td>
-              </tr>
-              <tr>
-                <td>신뢰도</td>
-                <td>{(suggestion.confidence * 100).toFixed(1)}%</td>
-              </tr>
-            </tbody>
-          </table>
+            <div style={{ paddingLeft: 32 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                <h3>예측 결과</h3>
+                {editing && (
+                  <button className="btn btn-sm" disabled={repredictLoading} onClick={handleRepredict}>
+                    {repredictLoading ? <><span className="spinner" /> 재예측 중...</> : '재예측'}
+                  </button>
+                )}
+              </div>
+              {isStale && (
+                <p style={{ color: 'var(--warning)', fontSize: 12, margin: '0 0 6px' }}>
+                  ⚠ 수정된 값 기준으로 재예측이 필요합니다
+                </p>
+              )}
+              <table className="kv-table">
+                <tbody>
+                  <tr>
+                    <td>예측 Kerf</td>
+                    <td>{displayPred.pred_kerf} μm</td>
+                  </tr>
+                  <tr>
+                    <td>예측 Depth</td>
+                    <td>{displayPred.pred_depth} μm</td>
+                  </tr>
+                  <tr>
+                    <td>예측 판정</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span className={`pill ${QUALITY_PILL[displayPred.pred_quality] ?? 'pill-muted'}`}>
+                        {displayPred.pred_quality}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td>신뢰도</td>
+                    <td>{(displayPred.confidence * 100).toFixed(1)}%</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
 
           <h3 style={{ marginTop: 24 }}>SHAP 영향도 (Depth, 상위 5개)</h3>
           <ResponsiveContainer width="100%" height={220}>
@@ -202,6 +269,24 @@ export default function ApprovalPage() {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+
+          {shapData.length > 0 && (
+            <div
+              style={{
+                background: 'var(--bg)',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: 14,
+                marginTop: 12,
+                fontSize: 13,
+              }}
+            >
+              <p style={{ margin: 0, lineHeight: 1.6, fontWeight: 700, color: 'var(--text)' }}>
+                이번 제안에서는 {FEATURE_LABELS[shapData[0].feature] ?? shapData[0].feature}가 Depth 예측에 가장 큰 영향을 주었습니다
+                ({shapData[0].value >= 0 ? 'Depth를 늘리는 방향' : 'Depth를 줄이는 방향'}).
+              </p>
+            </div>
+          )}
         </div>
 
         {/* 우측 패널 */}
@@ -248,7 +333,16 @@ export default function ApprovalPage() {
                 <button className="btn btn-success" disabled={loading} onClick={() => handleApprove(editedParams)}>
                   ✓ 수정값으로 승인
                 </button>
-                <button className="btn" disabled={loading} onClick={() => { setEditing(false); setEditedParams(suggestion.suggested_params) }}>
+                <button
+                  className="btn"
+                  disabled={loading}
+                  onClick={() => {
+                    setEditing(false)
+                    setEditedParams(suggestion.suggested_params)
+                    setPredOverride(null)
+                    setLastPredictedParams(suggestion.suggested_params)
+                  }}
+                >
                   취소
                 </button>
               </>
@@ -274,25 +368,6 @@ export default function ApprovalPage() {
               <li><strong>SHAP 영향도 그래프</strong>: 각 파라미터(또는 조합 변수)가 예측 Depth를 얼마나, 어느 방향으로 바꾸는지를 보여줍니다. 막대가 오른쪽(파란색, 양수)이면 Depth를 늘리는 방향, 왼쪽(빨간색, 음수)이면 줄이는 방향으로 작용했다는 의미이며, 막대가 길수록 영향이 큽니다.</li>
             </ul>
           </div>
-
-          {shapData.length > 0 && (
-            <div
-              style={{
-                background: 'var(--text)',
-                color: '#fff',
-                borderRadius: 8,
-                padding: 14,
-                marginTop: 12,
-                fontSize: 13,
-              }}
-            >
-              <h3 style={{ fontSize: 14, color: '#fff', marginBottom: 8 }}>이번 제안 해석</h3>
-              <p style={{ margin: 0, lineHeight: 1.6 }}>
-                이번 제안에서는 <strong>{FEATURE_LABELS[shapData[0].feature] ?? shapData[0].feature}</strong>가 Depth 예측에 가장 큰 영향을 주었습니다
-                ({shapData[0].value >= 0 ? 'Depth를 늘리는 방향' : 'Depth를 줄이는 방향'}).
-              </p>
-            </div>
-          )}
         </div>
       </div>
 

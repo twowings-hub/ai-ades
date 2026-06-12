@@ -391,3 +391,52 @@
 ### 다음 단계
 - 본 세션 변경사항(E2E 테스트, OPERATIONS.md, doe_routes.py 분리) git commit 미완료
 - Plasma 실데이터 확인 후 region 판별 임계값 재조정 필요 (보류 중)
+
+---
+
+## 테스트 데이터 정리 기능 + 자동 재학습 진행도 + 관리자/운영 화면 UI 정리 (2026-06-13)
+
+### 1. 테스트 데이터 정리 기능 (Auto DOE 인위 데이터 안전 삭제)
+- 배경: 시나리오 테스트로 생성된 미가공/과가공 Auto DOE 실험이 재학습 임계값(50건)에 누적되어 모델을 오염시킬 우려 → 재학습 반영 전에 안전하게 정리하는 관리자 기능 신설
+- `services/execution-agent/admin_data.py`:
+  - `GET /admin/data/test-experiments` — `exp_no LIKE 'DOE-%'` 이면서 **마지막 학습 시각 이후 생성된**(아직 미반영) 실험만 조회
+  - `POST /admin/data/test-experiments/delete` — 2중 안전장치: (1) `exp_no`가 `DOE-`로 시작하지 않는 원본 업로드 데이터 제외, (2) 이미 재학습에 반영된(created_at ≤ 마지막 학습 시각) 데이터 제외. 삭제 시 `approval.log_audit(action_type="data_cleanup")` 감사로그 기록
+- `frontend/src/pages/admin/DataManagementSection.jsx`: "테스트 데이터 정리" 카드 추가 — 체크박스 목록(스크롤·sticky 헤더), "선택 삭제(N건)" 버튼, **"삭제" 타이핑 확인 모달**(오삭제 방지)
+- 검증: curl로 빈 선택→400, 존재하지 않는 id→400("삭제 가능한 항목 없음"), 정상 삭제 후 `audit_logs`에 `data_cleanup` 기록 확인
+
+### 2. 자동 재학습 진행도 표시
+- `services/execution-agent/admin.py`: `_get_retrain_progress()` 헬퍼 추출(조회 전용, 트리거 안 함) + `GET /admin/model/auto-retrain-progress` 신규. `check_and_trigger_retrain()`이 이 헬퍼를 재사용하도록 중복 제거
+  - 반환: `current_count`, `last_trained_count`, `added_since_last_training`, `threshold`, `remaining`
+- `frontend/src/pages/admin/RetrainSection.jsx`: "자동 재학습 진행도" 카드(progress bar) 추가 — 누적 N/50건, 남은 건수 안내, 재학습 완료(running→idle) 시 자동 재조회
+- 검증: `GET /admin/model/auto-retrain-progress` 정상 응답 확인
+
+### 3. 관리자 콘솔 UI 정리
+- `frontend/src/index.css` `.admin-table` 행 높이/폰트 반복 조정 → 최종 `td padding 2px 10px / font-size 14px / line-height 1`, 제목행은 별도 여유(`th padding 6px 10px`), `.btn-sm`·`.pill` line-height 보정. `.btn`에 `white-space: nowrap` 추가(버튼 줄바꿈 방지)
+- `frontend/src/pages/admin/MaterialTypesSection.jsx`: 소재 종류 목록을 `.admin-table`로 전환, 셀 높이 축소, 10건 이상이면 `maxHeight`+sticky 헤더로 스크롤
+- `frontend/src/pages/admin/DataManagementSection.jsx`: "테이블 현황" 표를 `.admin-table`로 통일(건수 우측정렬), 카드 간 여백 축소
+- `frontend/src/pages/admin/LlmSection.jsx`: "현재 적용 모델"과 "프로바이더/모델 전환" 카드 통합, 기본 select 값을 현재 적용값으로 맞춤, 프로바이더·모델 선택부를 진한 배경 박스로 묶고 전환/연결 테스트 버튼도 박스 내 포함
+
+### 4. Claude Code CLI 모델 변경
+- 작업용 Claude Code CLI 모델을 Sonnet 4.6 → **Opus 4.8**로 전환(`/model opus`, 기본값 저장). ※ 앱 내 LLM 프로바이더 설정과는 무관(별개)
+
+### 5. 시스템 상태 화면 정리 (`SystemStatusSection.jsx`)
+- 두 카드 패딩 축소(`12px 16px`), 카드 간 여백 축소
+- "리소스 사용량"과 "최근 모델 학습 지표" 표를 flex로 좌우 배치 → 이후 위치 교체(**왼쪽: 학습 지표 / 오른쪽: 리소스 사용량**)
+- 학습 시각을 `formatShortDateTime()`로 `YYYY-MM-DD HH:mm` 단축 표시(초·마이크로초·타임존 생략)
+
+### 6. 레시피 조회 화면 정리 (`RecipeSearchPage.jsx`)
+- 입력 카드 하단 패딩·"전체 레시피 목록" 카드 상단 패딩·카드 간 여백 축소
+- "레시피 조회" 버튼 직후 나오는 결과 카드(녹색 "N건 찾았습니다" 박스)·단일 레시피 카드·에러/없음 배너의 `marginTop` 16 → 4로 축소
+
+### 7. 상단 네비게이션 메뉴 버튼 강조 (`Layout.jsx`)
+- 비활성 메뉴에 옅은 배경(`#eceef1`) + 진한 테두리(`#9aa0a8`) 적용해 7개 메뉴가 버튼처럼 또렷하게 보이도록 개선(활성 메뉴는 기존 accent 유지)
+
+### 8. 결과 보고 화면 — 승인된 파라미터 테이블 (`ResultPage.jsx`)
+- `.table-bordered` 클래스 신규(`index.css`, 셀마다 `border 1px solid #9aa0a8`) 적용해 진한 격자 테두리
+- Speed/Defocus/Frequency/Power 및 예측값 컬럼 가운데 정렬 + 단위 표기 추가(`PARAM_UNITS`: Speed mm/s, Defocus mm, Frequency kHz, Power W)
+
+### 검증 방식
+- 프론트엔드 변경은 헤드리스 Chrome(`--headless --screenshot`)로 실제 렌더링 캡처해 확인(`/recipes` 여백, 네비 버튼 테두리 등). 결과 보고 표는 승인된 제안이 있어야 표시되어 직접 캡처는 생략
+
+### 다음 단계
+- 본 세션 변경사항 git commit 미완료(이전 세션 누적분 포함)

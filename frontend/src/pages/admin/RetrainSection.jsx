@@ -3,9 +3,19 @@ import { executionApi } from '../../api/client'
 
 export default function RetrainSection() {
   const [status, setStatus] = useState(null)
+  const [progress, setProgress] = useState(null)
   const [error, setError] = useState(null)
   const [starting, setStarting] = useState(false)
   const pollRef = useRef(null)
+
+  const loadProgress = async () => {
+    try {
+      const res = await executionApi.get('/admin/model/auto-retrain-progress')
+      setProgress(res.data.data)
+    } catch (err) {
+      setError(err.response?.data?.message || err.message)
+    }
+  }
 
   const startPolling = () => {
     if (pollRef.current) return
@@ -35,9 +45,18 @@ export default function RetrainSection() {
 
   useEffect(() => {
     loadStatus()
+    loadProgress()
     return () => stopPolling()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 재학습이 끝나면(running -> idle) 자동 재학습 진행도도 다시 조회한다
+  useEffect(() => {
+    if (status?.status === 'idle') {
+      loadProgress()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status?.status, status?.finished_at])
 
   const handleRetrain = async () => {
     setStarting(true)
@@ -59,6 +78,32 @@ export default function RetrainSection() {
     <div>
       <h2>모델 재학습</h2>
       {error && <div className="banner banner-warning">{error}</div>}
+
+      {progress && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h3>자동 재학습 진행도</h3>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 8 }}>
+            마지막 학습 이후 누적된 실험이 {progress.threshold}건 이상이면 자동으로 재학습이 시작됩니다.
+          </p>
+          <p>
+            누적 {progress.added_since_last_training} / {progress.threshold}건
+            {progress.remaining > 0
+              ? ` (${progress.remaining}건 더 추가되면 자동 재학습)`
+              : ' (조건 충족 — 다음 실험 결과 저장 시 자동 재학습 시작)'}
+          </p>
+          <div className="progress-bar">
+            <div
+              className="progress-bar-fill"
+              style={{
+                width: `${Math.min(100, (progress.added_since_last_training / progress.threshold) * 100)}%`,
+              }}
+            />
+          </div>
+          <p style={{ color: 'var(--text-muted)', marginTop: 8, fontSize: 13 }}>
+            현재 실험 데이터 {progress.current_count}건 / 마지막 학습 시점 {progress.last_trained_count}건
+          </p>
+        </div>
+      )}
 
       <div className="card">
         <p>

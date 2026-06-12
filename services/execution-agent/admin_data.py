@@ -10,7 +10,9 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
+import approval
 from db import get_connection
 from responses import make_response as _response
 
@@ -240,3 +242,119 @@ def data_export():
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=experiments.csv"},
     )
+
+
+@router.get("/data/test-experiments")
+def list_test_experiments():
+    """
+    아직 재학습에 반영되지 않은 Auto DOE 실험(exp_no가 'DOE-'로 시작) 목록을 조회한다.
+    시나리오 테스트 등으로 인위적으로 생성된 데이터를 재학습 전에 정리할 때 사용한다.
+    (마지막 학습 시점 이전에 생성된 데이터는 이미 모델에 반영되었으므로 대상에서 제외)
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT trained_at FROM model_metrics ORDER BY trained_at DESC LIMIT 1")
+            row = cur.fetchone()
+            last_trained_at = row[0] if row else None
+
+            query = """
+                SELECT id, exp_no, speed, defocus, frequency, power,
+                       kerf_um, depth_um, quality, created_at
+                FROM experiments
+                WHERE exp_no LIKE 'DOE-%%'
+            """
+            params: list = []
+            if last_trained_at:
+                query += " AND created_at > %s"
+                params.append(last_trained_at)
+            query += " ORDER BY created_at DESC"
+
+            cur.execute(query, params)
+            rows = cur.fetchall()
+    finally:
+        conn.close()
+
+    experiments = [
+        {
+            "id": r[0],
+            "exp_no": r[1],
+            "speed": float(r[2]) if r[2] is not None else None,
+            "defocus": float(r[3]) if r[3] is not None else None,
+            "frequency": float(r[4]) if r[4] is not None else None,
+            "power": float(r[5]) if r[5] is not None else None,
+            "kerf_um": float(r[6]) if r[6] is not None else None,
+            "depth_um": float(r[7]) if r[7] is not None else None,
+            "quality": r[8],
+            "created_at": r[9].isoformat(),
+        }
+        for r in rows
+    ]
+
+    return _response(
+        True,
+        {
+            "experiments": experiments,
+            "last_trained_at": last_trained_at.isoformat() if last_trained_at else None,
+        },
+        "재학습 미반영 Auto DOE 실험 조회 완료",
+    )
+
+
+class DeleteTestExperimentsRequest(BaseModel):
+    ids: list[int]
+    operator_name: str = "admin"
+
+
+@router.post("/data/test-experiments/delete")
+def delete_test_experiments(req: DeleteTestExperimentsRequest):
+    """
+    선택한 Auto DOE 실험을 experiments 테이블에서 삭제한다.
+    안전장치: exp_no가 'DOE-'로 시작하지 않거나(원본 업로드 데이터),
+    이미 재학습에 반영된(created_at <= 마지막 학습 시각) 데이터는 삭제 대상에서 제외한다.
+    """
+    if not req.ids:
+        raise HTTPException(status_code=400, detail="삭제할 항목을 선택해주세요")
+
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT trained_at FROM model_metrics ORDER BY trained_at DESC LIMIT 1")
+            row = cur.fetchone()
+            last_trained_at = row[0] if row else None
+
+            query = "SELECT id, exp_no FROM experiments WHERE id = ANY(%s) AND exp_no LIKE 'DOE-%%'"
+            params: list = [req.ids]
+            if last_trained_at:
+                query += " AND created_at > %s"
+                params.append(last_trained_at)
+
+            cur.execute(query, params)
+            deletable = cur.fetchall()
+            deletable_ids = [r[0] for r in deletable]
+
+            if not deletable_ids:
+                raise HTTPException(
+                    status_code=400,
+                    detail="삭제 가능한 항목이 없습니다 (이미 재학습에 반영되었거나 Auto DOE 데이터가 아닙니다)",
+                )
+
+            cur.execute("DELETE FROM experiments WHERE id = ANY(%s)", (deletable_ids,))
+        conn.commit()
+    finally:
+        conn.close()
+
+    skipped = len(req.ids) - len(deletable_ids)
+
+    approval.log_audit(
+        action_type="data_cleanup",
+        operator=req.operator_name,
+        description=f"테스트용 Auto DOE 실험 {len(deletable_ids)}건 삭제 ({', '.join(e[1] for e in deletable)})",
+        old_value={"deleted_exp_no": [e[1] for e in deletable]},
+    )
+
+    message = f"{len(deletable_ids)}건 삭제 완료"
+    if skipped:
+        message += f" ({skipped}건은 이미 재학습에 반영되어 제외됨)"
+
+    return _response(True, {"deleted": len(deletable_ids), "skipped": skipped}, message)

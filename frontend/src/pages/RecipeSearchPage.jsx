@@ -98,7 +98,7 @@ export default function RecipeSearchPage() {
       </p>
 
       {/* 입력 영역 */}
-      <div className="card" style={{ marginTop: 16 }}>
+      <div className="card" style={{ marginTop: 16, paddingBottom: 8 }}>
         <h3>M1 소재 종류</h3>
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {materialTypes.m1.map((t) => (
@@ -207,16 +207,16 @@ export default function RecipeSearchPage() {
       </div>
 
       {/* 결과 영역 */}
-      {error && <div className="banner banner-warning" style={{ marginTop: 16 }}>{error}</div>}
+      {error && <div className="banner banner-warning" style={{ marginTop: 4 }}>{error}</div>}
 
       {result?.notFound && (
-        <div className="banner banner-warning" style={{ marginTop: 16 }}>
+        <div className="banner banner-warning" style={{ marginTop: 4 }}>
           레시피가 없습니다. Auto DOE를 실행해 새 레시피를 만들어주세요.
         </div>
       )}
 
       {result?.materialMatches && (
-        <div className="card" style={{ marginTop: 16 }}>
+        <div className="card" style={{ marginTop: 4 }}>
           {result.materialMatches.length === 0 ? (
             <div className="banner banner-warning">
               {m1Glass} / {m2Film} 조합의 레시피가 없습니다. Auto DOE를 실행해 새 레시피를 만들어주세요.
@@ -270,7 +270,7 @@ export default function RecipeSearchPage() {
       )}
 
       {result?.recipe && (
-        <div className="card" style={{ marginTop: 16 }}>
+        <div className="card" style={{ marginTop: 4 }}>
           <div className={`banner ${result.exact_match ? 'banner-success' : 'banner-info'}`} style={{ marginBottom: 16 }}>
             {result.exact_match
               ? '✅ 정확히 일치하는 레시피입니다.'
@@ -314,14 +314,15 @@ export default function RecipeSearchPage() {
       )}
 
       {/* 전체 레시피 목록 */}
-      <div className="card" style={{ marginTop: 24 }}>
+      <div className="card" style={{ marginTop: 4, paddingTop: 10 }}>
         <h3>전체 레시피 목록 ({recipes.length}건)</h3>
-        <p style={{ color: 'var(--text-muted)', marginBottom: 12 }}>행을 클릭하면 위 입력 조건과 결과에 반영됩니다.</p>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 8 }}>행을 클릭하면 위 입력 조건과 결과에 반영됩니다.</p>
         {listError && <div className="banner banner-warning">{listError}</div>}
 
-        <div style={{ overflowX: 'auto' }}>
+        {/* 레시피가 6건 이상이면 고정 높이 슬라이드(스크롤) 윈도우로 표시 */}
+        <div style={{ overflowX: 'auto', ...(recipes.length >= 6 ? { maxHeight: 240, overflowY: 'auto' } : {}) }}>
           <table>
-            <thead>
+            <thead style={recipes.length >= 6 ? { position: 'sticky', top: 0, zIndex: 1 } : undefined}>
               <tr>
                 <th>ID</th>
                 <th>M1</th>

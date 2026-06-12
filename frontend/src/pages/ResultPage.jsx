@@ -10,6 +10,14 @@ const PARAM_LABELS = {
   power: 'Power',
 }
 
+// 각 파라미터의 표시 단위 (레시피 조회 화면과 동일 기준)
+const PARAM_UNITS = {
+  speed: 'mm/s',
+  defocus: 'mm',
+  frequency: 'kHz',
+  power: 'W',
+}
+
 const QUALITY_PILL = {
   OK: 'pill-ok',
   미가공: 'pill-warn',
@@ -23,8 +31,9 @@ export default function ResultPage() {
   const suggestion = session.suggestion
   const finalParams = session.approval?.final_params ?? suggestion?.suggested_params
 
-  const [actualKerf, setActualKerf] = useState('')
-  const [actualDepth, setActualDepth] = useState('')
+  // 예측값을 샘플 값으로 미리 채워두고, 운영자가 실측값으로 수정하도록 한다
+  const [actualKerf, setActualKerf] = useState(suggestion?.pred_kerf ?? '')
+  const [actualDepth, setActualDepth] = useState(suggestion?.pred_depth ?? '')
   const [notes, setNotes] = useState('')
   const [notesEdited, setNotesEdited] = useState(false)
   const [evalLoading, setEvalLoading] = useState(false)
@@ -85,13 +94,6 @@ export default function ResultPage() {
     }
   }
 
-  // 실측값을 모두 입력하면 AI가 평가 초안을 자동으로 작성한다 (운영자가 직접 입력을 시작했다면 덮어쓰지 않음)
-  const handleActualBlur = () => {
-    if (canEvaluate && notes.trim() === '' && !notesEdited) {
-      handleGenerateEvaluation()
-    }
-  }
-
   const handleSave = async () => {
     setLoading(true)
     setError(null)
@@ -145,25 +147,27 @@ export default function ResultPage() {
 
       <div className="card">
         <h3>승인된 파라미터 ({suggestion.doe_attempt}차)</h3>
-        <table>
+        <table className="table-bordered">
           <thead>
             <tr>
               {Object.values(PARAM_LABELS).map((label) => (
-                <th key={label}>{label}</th>
+                <th key={label} style={{ textAlign: 'center' }}>{label}</th>
               ))}
-              <th>예측 Kerf</th>
-              <th>예측 Depth</th>
-              <th>예측 판정</th>
+              <th style={{ textAlign: 'center' }}>예측 Kerf</th>
+              <th style={{ textAlign: 'center' }}>예측 Depth</th>
+              <th style={{ textAlign: 'center' }}>예측 판정</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               {Object.keys(PARAM_LABELS).map((key) => (
-                <td key={key}>{finalParams[key]}</td>
+                <td key={key} style={{ textAlign: 'center' }}>
+                  {finalParams[key]} {PARAM_UNITS[key]}
+                </td>
               ))}
-              <td>{suggestion.pred_kerf} μm</td>
-              <td>{suggestion.pred_depth} μm</td>
-              <td>
+              <td style={{ textAlign: 'center' }}>{suggestion.pred_kerf} μm</td>
+              <td style={{ textAlign: 'center' }}>{suggestion.pred_depth} μm</td>
+              <td style={{ textAlign: 'center' }}>
                 <span className={`pill ${QUALITY_PILL[suggestion.pred_quality] ?? 'pill-muted'}`}>
                   {suggestion.pred_quality}
                 </span>
@@ -183,7 +187,6 @@ export default function ResultPage() {
               step="0.1"
               value={actualKerf}
               onChange={(e) => setActualKerf(e.target.value)}
-              onBlur={handleActualBlur}
               disabled={!!result}
               style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 160 }}
             />
@@ -195,7 +198,6 @@ export default function ResultPage() {
               step="0.1"
               value={actualDepth}
               onChange={(e) => setActualDepth(e.target.value)}
-              onBlur={handleActualBlur}
               disabled={!!result}
               style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 160 }}
             />

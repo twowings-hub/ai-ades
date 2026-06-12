@@ -285,13 +285,13 @@ def model_retrain_status():
     return _response(True, RETRAIN_STATUS, "재학습 상태 조회 완료")
 
 
-def check_and_trigger_retrain() -> dict:
+def _get_retrain_progress() -> dict:
     """
-    experiments 누적 건수가 마지막 학습 시점보다 AUTO_RETRAIN_THRESHOLD 이상 늘었으면
-    자동으로 재학습을 트리거한다 (Phase 6).
+    현재 experiments 누적 건수와 마지막 학습 시점 건수를 비교하여
+    자동 재학습까지 남은 건수를 계산한다 (조회 전용, 재학습을 트리거하지 않음).
 
     Returns:
-        {"triggered": bool, "current_count": int, "last_trained_count": int, "threshold": int}
+        {"current_count": int, "last_trained_count": int, "threshold": int, "remaining": int}
     """
     conn = get_connection()
     try:
@@ -306,6 +306,36 @@ def check_and_trigger_retrain() -> dict:
             last_trained_count = row[0] if row and row[0] is not None else 0
     finally:
         conn.close()
+
+    added = current_count - last_trained_count
+    remaining = max(AUTO_RETRAIN_THRESHOLD - added, 0)
+
+    return {
+        "current_count": current_count,
+        "last_trained_count": last_trained_count,
+        "added_since_last_training": added,
+        "threshold": AUTO_RETRAIN_THRESHOLD,
+        "remaining": remaining,
+    }
+
+
+@router.get("/model/auto-retrain-progress")
+def model_auto_retrain_progress():
+    """자동 재학습까지 남은 실험 건수를 조회한다 (Phase 6)"""
+    return _response(True, _get_retrain_progress(), "자동 재학습 진행도 조회 완료")
+
+
+def check_and_trigger_retrain() -> dict:
+    """
+    experiments 누적 건수가 마지막 학습 시점보다 AUTO_RETRAIN_THRESHOLD 이상 늘었으면
+    자동으로 재학습을 트리거한다 (Phase 6).
+
+    Returns:
+        {"triggered": bool, "current_count": int, "last_trained_count": int, "threshold": int}
+    """
+    progress = _get_retrain_progress()
+    current_count = progress["current_count"]
+    last_trained_count = progress["last_trained_count"]
 
     triggered = False
     if (

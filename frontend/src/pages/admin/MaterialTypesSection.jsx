@@ -132,72 +132,74 @@ export default function MaterialTypesSection() {
 
       <div className="card">
         <h3>소재 종류 목록</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>구분</th>
-              <th>이름</th>
-              <th>설명</th>
-              <th>상태</th>
-              <th>등록일</th>
-              <th>관리</th>
-            </tr>
-          </thead>
-          <tbody>
-            {types.map((t) => (
-              <tr key={t.id}>
-                <td>{CATEGORY_LABELS[t.category] ?? t.category}</td>
-                <td>
-                  {editingId === t.id ? (
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      style={{ padding: '4px 8px', width: 160 }}
-                    />
-                  ) : (
-                    t.name
-                  )}
-                </td>
-                <td>
-                  {editingId === t.id ? (
-                    <input
-                      type="text"
-                      value={editDescription}
-                      onChange={(e) => setEditDescription(e.target.value)}
-                      placeholder="설명 (선택)"
-                      style={{ padding: '4px 8px', width: 220 }}
-                    />
-                  ) : (
-                    t.description ?? '-'
-                  )}
-                </td>
-                <td>
-                  <span className={`pill ${t.is_active ? 'pill-ok' : 'pill-warn'}`}>
-                    {t.is_active ? '활성' : '비활성'}
-                  </span>
-                </td>
-                <td>{new Date(t.created_at).toLocaleString()}</td>
-                <td>
-                  {editingId === t.id ? (
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn btn-primary" disabled={!editName} onClick={() => handleUpdate(t.id)}>저장</button>
-                      <button className="btn" onClick={() => setEditingId(null)}>취소</button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button className="btn" onClick={() => startEdit(t)}>수정</button>
-                      <button className="btn" onClick={() => handleToggleActive(t)}>
-                        {t.is_active ? '비활성화' : '활성화'}
-                      </button>
-                      <button className="btn" onClick={() => handleDelete(t)}>삭제</button>
-                    </div>
-                  )}
-                </td>
+        <div style={{ overflowX: 'auto', ...(types.length >= 10 ? { maxHeight: 400, overflowY: 'auto' } : {}) }}>
+          <table className="admin-table">
+            <thead style={types.length >= 10 ? { position: 'sticky', top: 0, zIndex: 1 } : undefined}>
+              <tr>
+                <th style={{ width: 90 }}>구분</th>
+                <th style={{ width: 180 }}>이름</th>
+                <th style={{ width: 260 }}>설명</th>
+                <th style={{ width: 70 }}>상태</th>
+                <th style={{ width: 140 }}>등록일</th>
+                <th style={{ width: 220 }}>관리</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {types.map((t) => (
+                <tr key={t.id}>
+                  <td>{CATEGORY_LABELS[t.category] ?? t.category}</td>
+                  <td>
+                    {editingId === t.id ? (
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        style={{ padding: '2px 6px', width: 160 }}
+                      />
+                    ) : (
+                      t.name
+                    )}
+                  </td>
+                  <td>
+                    {editingId === t.id ? (
+                      <input
+                        type="text"
+                        value={editDescription}
+                        onChange={(e) => setEditDescription(e.target.value)}
+                        placeholder="설명 (선택)"
+                        style={{ padding: '2px 6px', width: 240 }}
+                      />
+                    ) : (
+                      t.description ?? '-'
+                    )}
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <span className={`pill ${t.is_active ? 'pill-ok' : 'pill-warn'}`}>
+                      {t.is_active ? '활성' : '비활성'}
+                    </span>
+                  </td>
+                  <td>{new Date(t.created_at).toLocaleDateString()}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    {editingId === t.id ? (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap' }}>
+                        <button className="btn btn-sm btn-primary" disabled={!editName} onClick={() => handleUpdate(t.id)}>저장</button>
+                        <button className="btn btn-sm" onClick={() => setEditingId(null)}>취소</button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'nowrap' }}>
+                        <button className="btn btn-sm" onClick={() => startEdit(t)}>수정</button>
+                        <button className="btn btn-sm" onClick={() => handleToggleActive(t)}>
+                          {t.is_active ? '비활성화' : '활성화'}
+                        </button>
+                        <button className="btn btn-sm" onClick={() => handleDelete(t)}>삭제</button>
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   )

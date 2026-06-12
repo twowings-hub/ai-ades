@@ -7,6 +7,15 @@ const STATUS_PILL = {
   down: 'pill-danger',
 }
 
+// ISO 타임스탬프를 'YYYY-MM-DD HH:mm' 형태로 단축한다 (초·마이크로초 생략)
+const formatShortDateTime = (value) => {
+  if (!value) return '-'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return value
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
 export default function SystemStatusSection() {
   const [health, setHealth] = useState(null)
   const [metrics, setMetrics] = useState(null)
@@ -38,21 +47,21 @@ export default function SystemStatusSection() {
     <div>
       <h2>시스템 상태</h2>
       {updatedAt && (
-        <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}>
           마지막 갱신: {updatedAt.toLocaleTimeString()} (30초마다 자동 갱신)
         </p>
       )}
       {error && <div className="banner banner-warning">{error}</div>}
 
-      <div className="card" style={{ marginBottom: 16 }}>
+      <div className="card" style={{ padding: '12px 16px', marginBottom: 10 }}>
         <h3>서비스 헬스체크</h3>
-        <table>
+        <table className="admin-table">
           <thead>
             <tr>
-              <th>서비스</th>
-              <th>포트</th>
-              <th>상태</th>
-              <th>응답시간</th>
+              <th style={{ width: 200 }}>서비스</th>
+              <th style={{ width: 100 }}>포트</th>
+              <th style={{ width: 120 }}>상태</th>
+              <th style={{ width: 120 }}>응답시간</th>
             </tr>
           </thead>
           <tbody>
@@ -60,71 +69,75 @@ export default function SystemStatusSection() {
               <tr key={s.name}>
                 <td>{s.name}</td>
                 <td>{s.port}</td>
-                <td>
+                <td style={{ textAlign: 'center' }}>
                   <span className={`pill ${STATUS_PILL[s.status] ?? 'pill-muted'}`}>{s.status}</span>
                 </td>
-                <td>{s.latency_ms != null ? `${s.latency_ms} ms` : '-'}</td>
+                <td style={{ textAlign: 'right' }}>{s.latency_ms != null ? `${s.latency_ms} ms` : '-'}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <div className="card">
-        <h3>리소스 사용량</h3>
+      <div className="card" style={{ padding: '12px 16px' }}>
         {metrics && (
-          <>
-            <table>
-              <tbody>
-                <tr>
-                  <td>CPU</td>
-                  <td>{metrics.cpu}%</td>
-                </tr>
-                <tr>
-                  <td>RAM</td>
-                  <td>{metrics.ram_used_gb} GB / {metrics.ram_total_gb} GB</td>
-                </tr>
-                <tr>
-                  <td>Disk</td>
-                  <td>{metrics.disk_used_gb} GB / {metrics.disk_total_gb} GB</td>
-                </tr>
-                <tr>
-                  <td>LLM</td>
-                  <td>{metrics.llm_provider} / {metrics.llm_model}</td>
-                </tr>
-              </tbody>
-            </table>
+          <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+            <div>
+              <h3 style={{ marginTop: 0 }}>최근 모델 학습 지표</h3>
+              {metrics.model_metrics ? (
+                <table className="kv-table">
+                  <tbody>
+                    <tr>
+                      <td>Kerf R²</td>
+                      <td>{metrics.model_metrics.kerf_r2}</td>
+                    </tr>
+                    <tr>
+                      <td>Depth R²</td>
+                      <td>{metrics.model_metrics.depth_r2}</td>
+                    </tr>
+                    <tr>
+                      <td>Quality F1 (macro)</td>
+                      <td>{metrics.model_metrics.quality_f1_macro}</td>
+                    </tr>
+                    <tr>
+                      <td>Quality Accuracy</td>
+                      <td>{metrics.model_metrics.quality_accuracy}</td>
+                    </tr>
+                    <tr>
+                      <td>학습 시각</td>
+                      <td>{formatShortDateTime(metrics.model_metrics.trained_at)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              ) : (
+                <p style={{ color: 'var(--text-muted)' }}>학습 이력이 없습니다.</p>
+              )}
+            </div>
 
-            <h3 style={{ marginTop: 20 }}>최근 모델 학습 지표</h3>
-            {metrics.model_metrics ? (
-              <table>
+            <div>
+              <h3 style={{ marginTop: 0 }}>리소스 사용량</h3>
+              <table className="kv-table">
                 <tbody>
                   <tr>
-                    <td>Kerf R²</td>
-                    <td>{metrics.model_metrics.kerf_r2}</td>
+                    <td>CPU</td>
+                    <td>{metrics.cpu}%</td>
                   </tr>
                   <tr>
-                    <td>Depth R²</td>
-                    <td>{metrics.model_metrics.depth_r2}</td>
+                    <td>RAM</td>
+                    <td>{metrics.ram_used_gb} GB / {metrics.ram_total_gb} GB</td>
                   </tr>
                   <tr>
-                    <td>Quality F1 (macro)</td>
-                    <td>{metrics.model_metrics.quality_f1_macro}</td>
+                    <td>Disk</td>
+                    <td>{metrics.disk_used_gb} GB / {metrics.disk_total_gb} GB</td>
                   </tr>
                   <tr>
-                    <td>Quality Accuracy</td>
-                    <td>{metrics.model_metrics.quality_accuracy}</td>
-                  </tr>
-                  <tr>
-                    <td>학습 시각</td>
-                    <td>{metrics.model_metrics.trained_at}</td>
+                    <td>LLM</td>
+                    <td>{metrics.llm_provider} / {metrics.llm_model}</td>
                   </tr>
                 </tbody>
               </table>
-            ) : (
-              <p style={{ color: 'var(--text-muted)' }}>학습 이력이 없습니다.</p>
-            )}
-          </>
+            </div>
+          </div>
         )}
       </div>
     </div>

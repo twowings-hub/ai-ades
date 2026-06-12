@@ -176,6 +176,32 @@ def doe_suggest(req: DoeSuggestRequest, background_tasks: BackgroundTasks):
     )
 
 
+class DoeRepredictRequest(BaseModel):
+    suggestion_id: str
+    params: dict  # 운영자가 수정한 speed/defocus/frequency/power
+
+
+@router.post("/repredict")
+def doe_repredict(req: DoeRepredictRequest):
+    """수정 후 승인 화면에서 운영자가 파라미터를 수정했을 때, 그 값으로 예측을 다시 계산한다."""
+    suggestion = _get_suggestion(req.suggestion_id)
+    pred = _call_predict(req.params, suggestion["m1_length"], suggestion["m2_length"], suggestion["thickness"])
+    # 이후 승인/결과 적재 시에도 최신 예측값을 사용하도록 갱신
+    suggestion["pred"] = pred
+
+    return _response(
+        True,
+        {
+            "pred_depth": pred["pred_depth"],
+            "pred_kerf": pred["pred_kerf"],
+            "pred_quality": pred["pred_quality"],
+            "confidence": pred["confidence"],
+            "shap_values": pred["shap_values"],
+        },
+        "재예측 완료",
+    )
+
+
 @router.get("/explanation/{suggestion_id}")
 def get_doe_explanation(suggestion_id: str):
     """백그라운드에서 생성 중인 LLM 설명 상태를 조회한다 (프론트엔드 폴링용)"""

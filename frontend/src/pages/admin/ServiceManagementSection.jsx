@@ -32,21 +32,21 @@ export default function ServiceManagementSection() {
     <div>
       <h2>서비스 관리</h2>
       <div className="card">
-        <table>
+        <table className="admin-table">
           <thead>
             <tr>
-              <th>서비스</th>
-              <th>작업</th>
-              <th>결과</th>
+              <th style={{ width: 220 }}>서비스</th>
+              <th style={{ width: 100 }}>작업</th>
+              <th style={{ width: 320 }}>결과</th>
             </tr>
           </thead>
           <tbody>
             {SERVICES.map((s) => (
               <tr key={s.name}>
                 <td>{s.label}</td>
-                <td>
+                <td style={{ textAlign: 'center' }}>
                   <button
-                    className="btn"
+                    className="btn btn-sm"
                     disabled={s.selfRestart || loadingService === s.name}
                     onClick={() => handleRestart(s.name)}
                     title={s.selfRestart ? '자기 자신은 재시작할 수 없습니다' : ''}

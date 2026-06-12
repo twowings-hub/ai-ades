@@ -1,11 +1,12 @@
 import { NavLink, Outlet } from 'react-router-dom'
 
 const navStyle = ({ isActive }) => ({
-  padding: '10px 16px',
+  padding: '8px 16px',
   borderRadius: 6,
   textDecoration: 'none',
   color: isActive ? '#fff' : 'var(--text)',
-  background: isActive ? 'var(--accent)' : 'transparent',
+  background: isActive ? 'var(--accent)' : '#eceef1',
+  border: `1px solid ${isActive ? 'var(--accent)' : '#9aa0a8'}`,
   fontWeight: 500,
 })
 
@@ -22,7 +23,10 @@ export default function Layout() {
           background: '#fff',
         }}
       >
-        <div style={{ fontWeight: 700, fontSize: 18 }}>AI-ADES</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <img src="/logo.png" alt="SDC" style={{ height: 14, position: 'relative', top: 4 }} />
+          <span style={{ fontWeight: 700, fontSize: 18 }}>AI-ADES</span>
+        </div>
         {/* 메뉴 추가/변경 시 services/execution-agent/chat.py의 SYSTEM_GUIDE도 함께 업데이트할 것 */}
         <nav style={{ display: 'flex', gap: 8 }}>
           <NavLink to="/" style={navStyle} end>

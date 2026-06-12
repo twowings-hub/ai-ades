@@ -23,12 +23,20 @@ def create_approval(suggestion_id: str, ai_params: dict, final_params: dict, ope
     conn = get_connection()
     try:
         with conn.cursor() as cur:
+            # 같은 suggestion_id로 재승인(중복 클릭, 재방문 등)하면 기존 기록을 갱신한다
             cur.execute(
                 """
                 INSERT INTO approvals (
                     suggestion_id, status, ai_params, final_params,
                     operator_name, token, expires_at
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (suggestion_id) DO UPDATE SET
+                    status = EXCLUDED.status,
+                    ai_params = EXCLUDED.ai_params,
+                    final_params = EXCLUDED.final_params,
+                    operator_name = EXCLUDED.operator_name,
+                    token = EXCLUDED.token,
+                    expires_at = EXCLUDED.expires_at
                 """,
                 (suggestion_id, status, Json(ai_params), Json(final_params), operator_name, token, expires_at),
             )

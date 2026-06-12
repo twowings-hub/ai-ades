@@ -15,6 +15,11 @@ export default function LlmSection() {
     try {
       const res = await executionApi.get('/admin/llm/available-models')
       setModels(res.data.data)
+      // 전환 섹션의 기본값을 현재 적용 중인 프로바이더/모델로 맞춘다
+      if (res.data.data.current) {
+        setProvider(res.data.data.current.provider)
+        setModel(res.data.data.current.model)
+      }
     } catch (err) {
       setError(err.response?.data?.message || err.message)
     }
@@ -60,18 +65,26 @@ export default function LlmSection() {
       <h2>LLM 모델 선택</h2>
       {error && <div className="banner banner-warning">{error}</div>}
 
-      {models.current && (
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3>현재 적용 중인 모델</h3>
-          <p style={{ fontSize: 15 }}>
-            <strong>{models.current.provider}</strong> / <strong>{models.current.model}</strong>
-          </p>
-        </div>
-      )}
-
       <div className="card">
         <h3>프로바이더 / 모델 전환</h3>
-        <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+        {models.current && (
+          <p style={{ color: 'var(--text-muted)', marginBottom: 12 }}>
+            현재 적용 중: <strong>{models.current.provider}</strong> / <strong>{models.current.model}</strong>
+          </p>
+        )}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+            marginBottom: 16,
+            border: '1px solid #c7cbd1',
+            borderRadius: 8,
+            padding: 16,
+            background: '#eef0f3',
+          }}
+        >
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             프로바이더
             <select
@@ -113,13 +126,14 @@ export default function LlmSection() {
           </label>
         </div>
 
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn btn-primary" disabled={!model || switching} onClick={handleSwitch}>
-            {switching ? <span className="spinner" /> : '전환 적용'}
-          </button>
-          <button className="btn" disabled={testing} onClick={handleTest}>
-            {testing ? <span className="spinner" /> : '연결 테스트'}
-          </button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="btn btn-primary" disabled={!model || switching} onClick={handleSwitch}>
+              {switching ? <span className="spinner" /> : '전환 적용'}
+            </button>
+            <button className="btn" disabled={testing} onClick={handleTest}>
+              {testing ? <span className="spinner" /> : '연결 테스트'}
+            </button>
+          </div>
         </div>
 
         {switchResult && (
@@ -135,9 +149,11 @@ export default function LlmSection() {
           </div>
         )}
 
-        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 16 }}>
-          {currentOptions.length === 0 ? '사용 가능한 모델 목록이 비어 있습니다.' : ''}
-        </p>
+        {currentOptions.length === 0 && (
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 16 }}>
+            사용 가능한 모델 목록이 비어 있습니다.
+          </p>
+        )}
       </div>
     </div>
   )
