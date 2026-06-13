@@ -104,6 +104,13 @@ th {
   width: 100px;
 }
 
+/* 라벨 컬럼을 한 줄로 표시 (긴 지표명이 줄바꿈되지 않도록 폭을 내용에 맞춤) */
+.kv-table--labels-nowrap th:first-child,
+.kv-table--labels-nowrap td:first-child {
+  width: auto;
+  white-space: nowrap;
+}
+
 /* 진한 격자 테두리 표 (결과 보고의 승인된 파라미터 등) - 셀마다 선명한 테두리 */
 .table-bordered th,
 .table-bordered td {

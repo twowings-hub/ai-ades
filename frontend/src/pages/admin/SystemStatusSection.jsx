@@ -95,7 +95,7 @@ export default function SystemStatusSection() {
             <div>
               <h3 style={{ ...sectionHeadStyle, marginTop: 0 }}>최근 모델 학습 지표</h3>
               {metrics.model_metrics ? (
-                <table className="kv-table" style={readingStyle}>
+                <table className="kv-table kv-table--labels-nowrap" style={readingStyle}>
                   <tbody>
                     <tr>
                       <td>Kerf R²</td>
