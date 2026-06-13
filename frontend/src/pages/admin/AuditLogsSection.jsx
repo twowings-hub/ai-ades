@@ -3,6 +3,16 @@ import { executionApi } from '../../api/client'
 
 const LIMIT = 20
 
+// 산업용 콘솔 톤: 필터 입력 각진 모서리, 로그 표 모노스페이스(계기판 느낌) — 타 화면과 통일
+const formInputStyle = {
+  padding: '8px 10px',
+  border: '1px solid #c7cbd1',
+  borderRadius: 4,
+}
+const readingStyle = {
+  fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
+}
+
 export default function AuditLogsSection() {
   const [logs, setLogs] = useState([])
   const [total, setTotal] = useState(0)
@@ -73,7 +83,7 @@ export default function AuditLogsSection() {
               value={actionType}
               onChange={(e) => setActionType(e.target.value)}
               placeholder="예: approval, llm_change"
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 200 }}
+              style={{ ...formInputStyle, width: 200 }}
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -82,7 +92,7 @@ export default function AuditLogsSection() {
               type="text"
               value={operator}
               onChange={(e) => setOperator(e.target.value)}
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 160 }}
+              style={{ ...formInputStyle, width: 160 }}
             />
           </label>
           <button className="btn btn-primary" onClick={handleSearch}>검색</button>
@@ -99,7 +109,7 @@ export default function AuditLogsSection() {
               <th>시각</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody style={readingStyle}>
             {logs.map((log) => (
               <tr key={log.id}>
                 <td>{log.id}</td>
