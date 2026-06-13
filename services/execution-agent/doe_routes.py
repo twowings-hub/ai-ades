@@ -27,6 +27,23 @@ MODELING_AGENT_URL = os.getenv("MODELING_AGENT_URL", "http://modeling-agent:8011
 SUGGESTIONS: dict = {}
 
 
+@router.get("/criteria")
+def doe_criteria():
+    """현재 품질 판정 기준(DEPTH_OK_MIN/MAX)을 반환한다.
+
+    결과 저장 전 '사전 판정 미리보기'에서 사용한다. 값은 .env에서 읽어
+    관리자 콘솔의 판정 기준 변경이 즉시 반영되도록 한다 (하드코딩 금지).
+    """
+    return _response(
+        True,
+        {
+            "depth_ok_min": float(os.getenv("DEPTH_OK_MIN", 0.0)),
+            "depth_ok_max": float(os.getenv("DEPTH_OK_MAX", 25.0)),
+        },
+        "판정 기준 조회 완료",
+    )
+
+
 # ------------------------------------------------------------
 # /doe/suggest
 # ------------------------------------------------------------

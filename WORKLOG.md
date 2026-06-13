@@ -440,3 +440,52 @@
 
 ### 다음 단계
 - 본 세션 변경사항 git commit 미완료(이전 세션 누적분 포함)
+
+---
+
+## 운영 플로우 UX 수정 + 결과 저장 확인절차/사전 판정 + Phase5·6 미팅 문서 + E2E 검증 (2026-06-13, 2차 세션)
+
+### 1. 검증된 레시피("1회 확인 실험") Auto DOE 시작 버튼 미동작 수정
+- 증상: 소재 조합에 검증된 레시피(Thickness 일치)가 있을 때 "Auto DOE 시작"을 눌러도 승인 화면으로 넘어가지 않음
+- 원인: `ExperimentPage.jsx` `runSuggest`에서 `recipe_found=true`면 `navigate('/approval')` 대신 눈에 안 띄는 중간 배너(`recipeBanner`)만 표시 → 한 번 더 클릭해야 진행
+- 수정: 레시피 보유/신규 조합 무관하게 동일하게 `/approval`로 이동(중간 배너·`recipeBanner` state/JSX 제거). 승인 화면이 이미 Human-in-the-Loop 단계라 중복 마찰 제거
+- `ApprovalPage.jsx`: 제목 옆에 `✅ 검증된 레시피 · 확인 실험` 배지 추가(`suggestion.recipe_found`) — 제거한 배너의 맥락 보존
+
+### 2. 승인 화면 SHAP 그래프 라벨 (`ApprovalPage.jsx`)
+- 왼쪽 Y축 라벨 잘림 해결: raw 키 대신 `FEATURE_LABELS` 적용(`shapData`에 `label` 필드 추가, `YAxis dataKey="label"`), `width` 90→120, 폰트 12
+- 파생변수 라벨 한·영 혼용 정리 → **전부 영어 통일**: 에너지 밀도→`Energy Density`, 정규화 Power→`Normalized Power`, Thickness 비율→`Thickness Ratio` (원본 7개 + 파생 5개 전부 영어)
+- 파생변수 개념 정리: `feature_engineering.py`의 energy_density/power_x_defocus/freq_x_power/thickness_ratio/normalized_power = 입력값으로 모델이 자동 계산하는 조합 변수
+
+### 3. 결과 보고 화면 "AI 평가" 버튼 (`ResultPage.jsx`)
+- 문구 `AI 평가로 채우기` → `AI 평가`, `btn-sm` → `btn-sm btn-primary`(배경색으로 구분)
+- 버그 수정: 설명 영역이 `<label>`이라 라벨 빈 공간 클릭 시 첫 폼 요소(버튼)가 눌림 → 바깥 `<label>`을 `<div>`로 변경(버튼만 클릭에 반응)
+
+### 4. 테스트 데이터 정리 — 판정/생성시각 필터 (`DataManagementSection.jsx`)
+- 판정 종류·생성시각으로 목록을 좁혀 선택·삭제하도록 필터 추가(client-side, 백엔드 변경 없음)
+- 초기엔 표 위 별도 필터 줄 → 요청에 따라 **테이블 헤더 제목 클릭형(엑셀식)** `FilterHeader` 컴포넌트로 변경(제목 클릭 시 옵션 팝오버, `position:fixed`로 스크롤 영역 클리핑 회피, 활성 시 제목 강조+선택값 표시)
+- 헤더 체크박스는 필터에 보이는 항목 기준 전체선택, 하단에 `N건 표시 · 선택 M건`+필터 초기화
+
+### 5. 결과 저장 전 "실측 결과 확인" 모달 + 사전 판정 미리보기 (`ResultPage.jsx`)
+- "결과 저장" 클릭 시 바로 저장하지 않고 확인 모달 표시: 승인 파라미터·실측 Kerf/Depth·결과 설명을 보여주고 [수정]/[확인 후 저장]
+- **사전 판정 미리보기**: 입력한 Depth 기준 OK/미가공/과가공을 pill로 표시(+OK 기준 안내)
+  - 백엔드: `doe_routes.py`에 `GET /doe/criteria` 신설(`DEPTH_OK_MIN/MAX`를 `.env`에서 반환 — 하드코딩 금지, 관리자 기준변경 즉시 반영). execution-agent 재빌드
+  - 프론트: 진입 시 기준 fetch 후 서버 `judge_quality`와 동일 로직으로 미리보기 계산. NG(Defect)는 Depth만으로 판단 불가하여 제외 명시
+- 모달 승인 파라미터 표시 다듬기: 한 줄→4줄, `Speed: 1000 mm/s` 형태로 콜론 기준 정렬(라벨 우측·값 우측, 2열 grid), 단위 괄호 제거
+
+### 6. Phase 5·6 작업 정리 + 고객사 미팅 협의/확인 문서
+- `scripts/gen_phase56_doc.py`: 동일 내용을 Word(.docx)+HTML 동시 생성(내용 동기화). 출력 `docs/Phase5-6_고객사미팅_정리.docx`/`.html`
+- 구성: 진행현황, Phase 5(설치 사전준비물/현장작업/완료기준), Phase 6(실사/개발/완료기준), **현장 현황 파악(As-Is) 9개 분야**(CO₂ 가공기·인터페이스·AI장비 실물·네트워크·학습데이터 취득·소재/판정·개발기간/운영·발전계획·일정), 핵심 결정사항 10개 표
+
+### 7. 브라우저 E2E 검증
+- 백엔드 운영 플로우 14/14 통과: 검증레시피 흐름(recipe_found=true) + 신규 탐색(Bayesian) 각각 suggest→approve→evaluate(AI평가)→result, 탐색공간 준수 확인
+- 헤드리스 캡처: 홈(네비7·폼·버튼), 관리자 콘솔(10섹션·헬스체크 전부 ok) 정상 렌더
+- SHAP 반환 12개 키 전부 `FEATURE_LABELS` 매핑 확인(raw 키 노출 없음)
+- 테스트 데이터 정리 엔드포인트 동작(삭제 2건) 확인
+- **사전 판정 미리보기**: 서버 `judge_quality`와 미리보기 로직 경계값 8/8 일치. 기준 변경 반영 자동검증 6/6(관리자 PATCH로 MAX 25→20 → `/doe/criteria` 20 반영 → 실행중 서버 실제판정도 Depth22를 미가공으로 → 25 원복). 검증 중 생성 데이터 전량 정리, 기준 0/25 원복
+
+### 검증 방식 메모
+- `docker exec`로 띄운 python은 별도 프로세스라 docker-compose 원본 env를 읽음 → 판정 검증은 **실행 중 uvicorn 프로세스**의 `/doe/result`로 해야 정확(첫 시도 1건 FAIL은 이 측정오류였음)
+
+### 다음 단계
+- 본 세션 변경사항 git commit 미완료(이전 세션 누적분 포함)
+- Phase 4 마무리: 승인화면 수정입력 탐색공간 가드(선택), 메뉴-SYSTEM_GUIDE 동기화 점검, 완료 보고 후 Phase 5 사전 준비물 착수

@@ -26,7 +26,6 @@ export default function ExperimentPage() {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [recipeBanner, setRecipeBanner] = useState(null)
 
   const [materialInfo, setMaterialInfo] = useState(null)
   const [materialInfoLoading, setMaterialInfoLoading] = useState(false)
@@ -110,7 +109,6 @@ export default function ExperimentPage() {
   const runSuggest = async (history) => {
     setLoading(true)
     setError(null)
-    setRecipeBanner(null)
 
     try {
       const res = await executionApi.post('/doe/suggest', {
@@ -125,12 +123,9 @@ export default function ExperimentPage() {
 
       const data = res.data.data
       setSuggestion(data)
-
-      if (data.recipe_found) {
-        setRecipeBanner(data)
-      } else {
-        navigate('/approval')
-      }
+      // 검증된 레시피(recipe_found)든 신규 조합이든 동일하게 승인 화면으로 이동한다.
+      // 승인 화면이 이미 Human-in-the-Loop 확인 단계이므로 중간 배너 단계는 두지 않는다.
+      navigate('/approval')
     } catch (err) {
       setError(err.response?.data?.message || err.message)
     } finally {
@@ -305,17 +300,6 @@ export default function ExperimentPage() {
         )}
 
         {error && <div className="banner banner-warning" style={{ padding: '8px 12px', fontSize: 13 }}>{error}</div>}
-
-        {recipeBanner && (
-          <div className="banner banner-info" style={{ padding: '8px 12px', fontSize: 13 }}>
-            저장된 레시피가 있습니다. 바로 적용하시겠습니까?
-            <div style={{ marginTop: 8 }}>
-              <button className="btn btn-primary btn-sm" onClick={() => navigate('/approval')}>
-                AI 제안 확인하기
-              </button>
-            </div>
-          </div>
-        )}
 
         <button className="btn btn-primary" disabled={!canSubmit} onClick={handleStart} style={{ width: '100%', padding: '10px 0', marginTop: 4 }}>
           {loading ? (

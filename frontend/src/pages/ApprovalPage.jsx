@@ -27,11 +27,11 @@ const FEATURE_LABELS = {
   thickness: 'Thickness',
   m1_length: 'M1 Length',
   m2_length: 'M2 Length',
-  energy_density: '에너지 밀도',
-  normalized_power: '정규화 Power',
+  energy_density: 'Energy Density',
+  normalized_power: 'Normalized Power',
   power_x_defocus: 'Power×Defocus',
   freq_x_power: 'Frequency×Power',
-  thickness_ratio: 'Thickness 비율',
+  thickness_ratio: 'Thickness Ratio',
 }
 
 export default function ApprovalPage() {
@@ -97,7 +97,7 @@ export default function ApprovalPage() {
 
   const shapData = Object.entries(displayPred.shap_values ?? {})
     .slice(0, 5)
-    .map(([feature, value]) => ({ feature, value }))
+    .map(([feature, value]) => ({ feature, label: FEATURE_LABELS[feature] ?? feature, value }))
     .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
 
   const handleApprove = async (paramsOverride) => {
@@ -162,7 +162,14 @@ export default function ApprovalPage() {
 
   return (
     <div>
-      <h2>AI 제안 승인 ({suggestion.doe_attempt}차)</h2>
+      <h2>
+        AI 제안 승인 ({suggestion.doe_attempt}차)
+        {suggestion.recipe_found && (
+          <span className="pill pill-ok" style={{ marginLeft: 10, fontSize: 13, verticalAlign: 'middle' }}>
+            ✅ 검증된 레시피 · 확인 실험
+          </span>
+        )}
+      </h2>
       {error && <div className="banner banner-warning">{error}</div>}
 
       <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
@@ -257,10 +264,10 @@ export default function ApprovalPage() {
 
           <h3 style={{ marginTop: 24 }}>SHAP 영향도 (Depth, 상위 5개)</h3>
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={shapData} layout="vertical" margin={{ left: 20 }}>
+            <BarChart data={shapData} layout="vertical" margin={{ left: 10 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
-              <YAxis type="category" dataKey="feature" width={90} />
+              <YAxis type="category" dataKey="label" width={120} tick={{ fontSize: 12 }} />
               <Tooltip />
               <Bar dataKey="value">
                 {shapData.map((entry, idx) => (

@@ -3,6 +3,93 @@ import { dataPrepApi, executionApi } from '../../api/client'
 
 const QUALITY_LABELS = { ok: 'OK', underprocess: '미가공', overprocess: '과가공', ng: 'NG' }
 
+/**
+ * 표 헤더 제목 자체를 클릭하면 옵션 목록(전체/미가공/과가공 등)이 뜨는 엑셀식 컬럼 필터.
+ * 스크롤 컨테이너에 잘리지 않도록 메뉴는 position:fixed로 트리거 위치에 띄운다.
+ */
+function FilterHeader({ label, value, options, onChange }) {
+  const [open, setOpen] = useState(false)
+  const [rect, setRect] = useState(null)
+  const triggerRef = useRef(null)
+  const active = value !== 'all'
+
+  // 메뉴가 열려 있을 때 바깥 클릭/스크롤 시 닫는다
+  useEffect(() => {
+    if (!open) return
+    const close = () => setOpen(false)
+    window.addEventListener('click', close)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [open])
+
+  const toggle = (e) => {
+    e.stopPropagation()
+    if (!open && triggerRef.current) {
+      setRect(triggerRef.current.getBoundingClientRect())
+    }
+    setOpen((v) => !v)
+  }
+
+  const selected = options.find((o) => o.value === value)
+
+  return (
+    <div
+      ref={triggerRef}
+      onClick={toggle}
+      title="클릭하여 필터"
+      style={{ cursor: 'pointer', userSelect: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, color: active ? 'var(--accent)' : 'inherit' }}
+    >
+      <span>{label}</span>
+      <span style={{ fontSize: 9 }}>▼</span>
+      {active && (
+        <span style={{ fontWeight: 400, fontSize: 11, color: 'var(--accent)' }}>: {selected?.label}</span>
+      )}
+      {open && rect && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            top: rect.bottom + 4,
+            left: rect.left,
+            minWidth: Math.max(rect.width, 120),
+            maxHeight: 260,
+            overflowY: 'auto',
+            background: 'var(--panel-bg)',
+            border: '1px solid var(--border)',
+            borderRadius: 6,
+            boxShadow: '0 6px 16px rgba(0,0,0,0.15)',
+            zIndex: 1000,
+            fontWeight: 400,
+          }}
+        >
+          {options.map((opt) => (
+            <div
+              key={opt.value}
+              onClick={() => { onChange(opt.value); setOpen(false) }}
+              style={{
+                padding: '6px 12px',
+                fontSize: 13,
+                whiteSpace: 'nowrap',
+                cursor: 'pointer',
+                color: 'var(--text)',
+                background: opt.value === value ? 'var(--bg)' : 'transparent',
+                fontWeight: opt.value === value ? 700 : 400,
+              }}
+            >
+              {opt.label}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function DataManagementSection() {
   const [stats, setStats] = useState(null)
   const [error, setError] = useState(null)
@@ -19,6 +106,9 @@ export default function DataManagementSection() {
   // 테스트 데이터 정리 (재학습에 반영되지 않은 Auto DOE 실험)
   const [testExperiments, setTestExperiments] = useState([])
   const [selectedIds, setSelectedIds] = useState([])
+  // 판정 종류 / 생성시각 필터 ('all'이면 전체)
+  const [qualityFilter, setQualityFilter] = useState('all')
+  const [timeFilter, setTimeFilter] = useState('all')
   const [showConfirm, setShowConfirm] = useState(false)
   const [confirmText, setConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
@@ -39,6 +129,8 @@ export default function DataManagementSection() {
       const res = await executionApi.get('/admin/data/test-experiments')
       setTestExperiments(res.data.data.experiments)
       setSelectedIds([])
+      setQualityFilter('all')
+      setTimeFilter('all')
     } catch (err) {
       setDeleteError(err.response?.data?.message || err.message)
     }
@@ -53,9 +145,30 @@ export default function DataManagementSection() {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]))
   }
 
+  // 현재 필터(판정/생성시각)에 해당하는 실험만 추린다
+  const filteredExperiments = testExperiments.filter(
+    (e) =>
+      (qualityFilter === 'all' || e.quality === qualityFilter) &&
+      (timeFilter === 'all' || e.created_at === timeFilter),
+  )
+
+  // 필터에 보이는 항목 기준으로 전체 선택/해제 (숨겨진 항목 선택은 그대로 유지)
+  const filteredIds = filteredExperiments.map((e) => e.id)
+  const allFilteredSelected = filteredIds.length > 0 && filteredIds.every((id) => selectedIds.includes(id))
+
   const toggleSelectAll = () => {
-    setSelectedIds((prev) => (prev.length === testExperiments.length ? [] : testExperiments.map((e) => e.id)))
+    setSelectedIds((prev) =>
+      allFilteredSelected
+        ? prev.filter((id) => !filteredIds.includes(id))
+        : [...new Set([...prev, ...filteredIds])],
+    )
   }
+
+  // 판정 종류 / 생성시각 드롭다운 옵션 (현재 목록에 존재하는 값만)
+  const qualityOptions = [...new Set(testExperiments.map((e) => e.quality))]
+  const timeOptions = [...new Set(testExperiments.map((e) => e.created_at))].sort(
+    (a, b) => new Date(b) - new Date(a),
+  )
 
   const handleDeleteConfirmed = async () => {
     setDeleting(true)
@@ -265,19 +378,40 @@ export default function DataManagementSection() {
                     <th style={{ width: 30, textAlign: 'center' }}>
                       <input
                         type="checkbox"
-                        checked={selectedIds.length === testExperiments.length}
+                        checked={allFilteredSelected}
                         onChange={toggleSelectAll}
                       />
                     </th>
                     <th style={{ width: 120 }}>실험번호</th>
                     <th style={{ width: 220 }}>조건 (speed/defocus/freq/power)</th>
                     <th style={{ width: 150 }}>결과 (kerf/depth)</th>
-                    <th style={{ width: 80 }}>판정</th>
-                    <th style={{ width: 160 }}>생성 시각</th>
+                    <th style={{ width: 90 }}>
+                      <FilterHeader
+                        label="판정"
+                        value={qualityFilter}
+                        options={[{ value: 'all', label: '전체' }, ...qualityOptions.map((q) => ({ value: q, label: q }))]}
+                        onChange={setQualityFilter}
+                      />
+                    </th>
+                    <th style={{ width: 170 }}>
+                      <FilterHeader
+                        label="생성 시각"
+                        value={timeFilter}
+                        options={[{ value: 'all', label: '전체' }, ...timeOptions.map((t) => ({ value: t, label: new Date(t).toLocaleString() }))]}
+                        onChange={setTimeFilter}
+                      />
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {testExperiments.map((e) => (
+                  {filteredExperiments.length === 0 && (
+                    <tr>
+                      <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
+                        선택한 조건에 해당하는 데이터가 없습니다.
+                      </td>
+                    </tr>
+                  )}
+                  {filteredExperiments.map((e) => (
                     <tr key={e.id}>
                       <td style={{ textAlign: 'center' }}>
                         <input
@@ -297,14 +431,23 @@ export default function DataManagementSection() {
               </table>
             </div>
 
-            <button
-              className="btn btn-danger"
-              style={{ marginTop: 8 }}
-              disabled={selectedIds.length === 0}
-              onClick={() => setShowConfirm(true)}
-            >
-              선택 삭제 ({selectedIds.length}건)
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+              <button
+                className="btn btn-danger"
+                disabled={selectedIds.length === 0}
+                onClick={() => setShowConfirm(true)}
+              >
+                선택 삭제 ({selectedIds.length}건)
+              </button>
+              {(qualityFilter !== 'all' || timeFilter !== 'all') && (
+                <button className="btn btn-sm" onClick={() => { setQualityFilter('all'); setTimeFilter('all') }}>
+                  필터 초기화
+                </button>
+              )}
+              <span style={{ color: 'var(--text-muted)', fontSize: 13, marginLeft: 'auto' }}>
+                {filteredExperiments.length}건 표시 · 선택 {selectedIds.length}건
+              </span>
+            </div>
           </>
         )}
 

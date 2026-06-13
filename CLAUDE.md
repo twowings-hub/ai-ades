@@ -147,7 +147,7 @@ GET  /health                 ← 서비스 상태
 | Phase 1 | Data Prep Agent, Excel 파싱 | ✅ 완료 |
 | Phase 2 | Modeling Agent, XGBoost+SHAP | ✅ 완료 |
 | Phase 3 | Execution Agent, Bayesian Opt, 승인/레시피 | ✅ 완료 |
-| Phase 4 | React UI + Admin Console | 🔶 진행 중 (Admin Console 9개 섹션·소재 종류 관리·외삽 경고 구현 완료, E2E 통합테스트 잔여) |
+| Phase 4 | React UI + Admin Console | 🔶 진행 중 (Admin Console 9~10개 섹션·소재 종류 관리·외삽 경고·테스트 데이터 정리·자동 재학습 진행도 구현 완료, API 레벨 E2E 완료. 현재 화면 UI 다듬기(여백/정렬/테두리/단위/표 배치) 반복 중) |
 | Phase 5 | 고객사 설치 테스트 | ⬜ 대기 |
 | Phase 6 | 설비 연동 + 실데이터 학습 | ⬜ 대기 |
 
