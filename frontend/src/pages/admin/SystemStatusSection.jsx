@@ -7,6 +7,16 @@ const STATUS_PILL = {
   down: 'pill-danger',
 }
 
+// 산업용 콘솔 톤: 섹션 헤더 액센트 좌측 바, 표 수치는 모노스페이스(계기판 느낌) — 타 화면과 통일
+const sectionHeadStyle = {
+  paddingLeft: 8,
+  borderLeft: '3px solid var(--accent)',
+  lineHeight: 1.2,
+}
+const readingStyle = {
+  fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
+}
+
 // ISO 타임스탬프를 'YYYY-MM-DD HH:mm' 형태로 단축한다 (초·마이크로초 생략)
 const formatShortDateTime = (value) => {
   if (!value) return '-'
@@ -54,8 +64,8 @@ export default function SystemStatusSection() {
       {error && <div className="banner banner-warning">{error}</div>}
 
       <div className="card" style={{ padding: '12px 16px', marginBottom: 10 }}>
-        <h3>서비스 헬스체크</h3>
-        <table className="admin-table">
+        <h3 style={sectionHeadStyle}>서비스 헬스체크</h3>
+        <table className="admin-table" style={readingStyle}>
           <thead>
             <tr>
               <th style={{ width: 200 }}>서비스</th>
@@ -83,9 +93,9 @@ export default function SystemStatusSection() {
         {metrics && (
           <div style={{ display: 'flex', gap: 32, flexWrap: 'wrap', alignItems: 'flex-start' }}>
             <div>
-              <h3 style={{ marginTop: 0 }}>최근 모델 학습 지표</h3>
+              <h3 style={{ ...sectionHeadStyle, marginTop: 0 }}>최근 모델 학습 지표</h3>
               {metrics.model_metrics ? (
-                <table className="kv-table">
+                <table className="kv-table" style={readingStyle}>
                   <tbody>
                     <tr>
                       <td>Kerf R²</td>
@@ -115,7 +125,7 @@ export default function SystemStatusSection() {
             </div>
 
             <div>
-              <h3 style={{ marginTop: 0 }}>리소스 사용량</h3>
+              <h3 style={{ ...sectionHeadStyle, marginTop: 0 }}>리소스 사용량</h3>
               <table className="kv-table">
                 <tbody>
                   <tr>
