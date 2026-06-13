@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { executionApi } from '../../api/client'
 
+// 산업용 콘솔 톤: 입력 각진 모서리 — 타 화면과 통일
+const formInputStyle = {
+  padding: '8px 10px',
+  border: '1px solid #c7cbd1',
+  borderRadius: 4,
+}
+
 export default function NotificationsSection() {
   const [settings, setSettings] = useState(null)
   const [error, setError] = useState(null)
@@ -76,7 +83,7 @@ export default function NotificationsSection() {
               type="email"
               value={settings.email ?? ''}
               onChange={(e) => handleChange('email', e.target.value)}
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6 }}
+              style={formInputStyle}
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -85,7 +92,7 @@ export default function NotificationsSection() {
               type="text"
               value={settings.slack_webhook ?? ''}
               onChange={(e) => handleChange('slack_webhook', e.target.value)}
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6 }}
+              style={formInputStyle}
             />
           </label>
 
