@@ -114,7 +114,7 @@ export default function AuditLogsSection() {
               <tr key={log.id}>
                 <td>{log.id}</td>
                 <td>{log.action_type}</td>
-                <td>{log.operator}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>{log.operator}</td>
                 <td>{log.description}</td>
                 <td>{new Date(log.created_at).toLocaleString()}</td>
               </tr>
