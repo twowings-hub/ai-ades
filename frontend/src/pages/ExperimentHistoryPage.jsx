@@ -12,6 +12,21 @@ const QUALITY_OPTIONS = ['', 'OK', '미가공', '과가공', 'NG']
 
 const PAGE_SIZE = 20
 
+// 산업용 콘솔 톤: 섹션 헤더 액센트 좌측 바, 수치 판독값 모노스페이스(계기판 느낌), 필터 입력 각진 모서리 — 타 화면과 통일
+const sectionHeadStyle = {
+  paddingLeft: 8,
+  borderLeft: '3px solid var(--accent)',
+  lineHeight: 1.2,
+}
+const readingStyle = {
+  fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
+}
+const filterInputStyle = {
+  padding: '8px 10px',
+  border: '1px solid #c7cbd1',
+  borderRadius: 4,
+}
+
 export default function ExperimentHistoryPage() {
   const [quality, setQuality] = useState('')
   const [search, setSearch] = useState('')
@@ -69,7 +84,7 @@ export default function ExperimentHistoryPage() {
             <select
               value={quality}
               onChange={(e) => { setPage(0); setQuality(e.target.value) }}
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 140 }}
+              style={{ ...filterInputStyle, width: 140 }}
             >
               {QUALITY_OPTIONS.map((q) => (
                 <option key={q} value={q}>{q === '' ? '전체' : q}</option>
@@ -84,7 +99,7 @@ export default function ExperimentHistoryPage() {
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               placeholder="예: DOE-1234abcd 또는 메모 내용 일부"
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6 }}
+              style={filterInputStyle}
             />
           </label>
           <button className="btn btn-primary" onClick={handleSearch} disabled={loading}>
@@ -97,7 +112,7 @@ export default function ExperimentHistoryPage() {
 
       {/* 결과 목록 */}
       <div className="card" style={{ marginTop: 16 }}>
-        <h3>실험 결과 ({total}건)</h3>
+        <h3 style={sectionHeadStyle}>실험 결과 ({total}건)</h3>
 
         {experiments.length === 0 && !loading && (
           <p style={{ textAlign: 'center', color: 'var(--text-muted)' }}>조회된 실험 이력이 없습니다</p>
@@ -117,7 +132,7 @@ export default function ExperimentHistoryPage() {
               }}
             >
               {/* 파라미터: 입력값 / 가공 조건 / 측정 결과 3개 컬럼 그룹으로 표시 */}
-              <div style={{ minWidth: 360, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14 }}>
+              <div style={{ minWidth: 360, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 14, ...readingStyle }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <strong>{e.exp_no}</strong>
                   <span className={`pill ${QUALITY_PILL[e.quality] ?? 'pill-muted'}`}>{e.quality}</span>
