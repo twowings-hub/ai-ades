@@ -44,6 +44,22 @@ SYSTEM_GUIDE = """AI-ADES(AI Autonomous Data Evaluation System)는 CO2 레이저
 - 관리자: 소재 종류 관리, AI 모델 재학습, LLM 프로바이더 전환, 알림 설정, 메일 서버(SMTP) 설정 등 시스템 설정을 관리하는 화면입니다."""
 
 
+def _load_system_manual() -> str:
+    """상세 사용 매뉴얼(system_manual.md)을 읽어 반환한다. 없으면 SYSTEM_GUIDE로 폴백.
+    매뉴얼 파일을 수정하면 컨테이너 재시작/재빌드 시 반영된다."""
+    path = os.path.join(os.path.dirname(__file__), "system_manual.md")
+    try:
+        with open(path, encoding="utf-8") as f:
+            content = f.read().strip()
+            return content if content else SYSTEM_GUIDE
+    except OSError:
+        return SYSTEM_GUIDE
+
+
+# 사용법 질문에 답할 때 프롬프트에 주입할 안내문. 상세 매뉴얼이 있으면 그것을, 없으면 기본 안내문을 쓴다.
+SYSTEM_MANUAL = _load_system_manual()
+
+
 CHAT_SYSTEM_TEMPLATE = """당신은 CO2 레이저 가공 AI Auto DOE 시스템(AI-ADES)의 운영 데이터를 설명하는 어시스턴트입니다.
 아래는 시스템 소개/사용법과, 현재 시스템에 저장된 실험/레시피 데이터 요약입니다. 이 정보를 바탕으로 운영자의 질문에 답변하세요.
 
@@ -72,6 +88,7 @@ CHAT_SYSTEM_TEMPLATE = """당신은 CO2 레이저 가공 AI Auto DOE 시스템(A
 {by_material}
 
 답변 규칙:
+- 화면 사용법·기능·절차·용어·판정 기준에 대한 질문(예: "OO 화면 어떻게 써?", "레시피가 뭐야?", "실험 몇 번 해야 해?")은 반드시 [시스템 소개 및 사용법]의 내용을 근거로 답변하세요. 이런 질문에는 데이터 통계([전체 실험 현황], [소재 조합별 현황], [최근 실험])를 섞지 마세요.
 - 화면이 일반 텍스트만 표시하므로 마크다운 문법(#, *, |, ---, ``` 등)을 사용하지 말고 줄바꿈과 "-" 목록만 사용하세요.
 - 문장은 한국어로 작성하되, M1/M2, Speed/Defocus/Frequency/Power, Depth/Kerf, OK 같은
   소재/파라미터/판정 명칭은 영어 표기 그대로 사용하세요 (예: "엠원" 대신 "M1").
@@ -218,7 +235,7 @@ def build_chat_context() -> str:
         conn.close()
 
     return CHAT_SYSTEM_TEMPLATE.format(
-        system_guide=SYSTEM_GUIDE,
+        system_guide=SYSTEM_MANUAL,
         summary=summary,
         material_types=material_types,
         model_metrics=model_metrics,
