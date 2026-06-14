@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ADMIN_AUTH_ENABLED, ADMIN_PASSWORD } from '../config/adminAuth'
 import AdminGuideSection from './admin/AdminGuideSection'
 import SystemStatusSection from './admin/SystemStatusSection'
 import ServiceManagementSection from './admin/ServiceManagementSection'
@@ -46,7 +47,67 @@ const SECTIONS = [
   { key: 'data', label: '데이터 관리', Component: DataManagementSection },
 ]
 
+// 관리자 콘솔 접근 비밀번호 게이트
+// ADMIN_AUTH_ENABLED=false 이면(테스트 중) 비밀번호 없이 통과한다.
+function AdminGate({ children }) {
+  const [authed, setAuthed] = useState(
+    () => !ADMIN_AUTH_ENABLED || sessionStorage.getItem('ades_admin_authed') === '1',
+  )
+  const [pw, setPw] = useState('')
+  const [error, setError] = useState(false)
+
+  if (authed) return children
+
+  const submit = (e) => {
+    e.preventDefault()
+    if (pw === ADMIN_PASSWORD) {
+      // 같은 탭 세션 동안은 다시 묻지 않는다
+      sessionStorage.setItem('ades_admin_authed', '1')
+      setAuthed(true)
+    } else {
+      setError(true)
+    }
+  }
+
+  return (
+    <div style={{ maxWidth: 360, margin: '60px auto' }}>
+      <div className="card">
+        <h2 style={{ marginBottom: 4 }}>관리자 인증</h2>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 0 }}>
+          관리자 콘솔에 접근하려면 비밀번호를 입력하세요.
+        </p>
+        <form onSubmit={submit}>
+          <input
+            type="password"
+            autoFocus
+            value={pw}
+            onChange={(e) => { setPw(e.target.value); setError(false) }}
+            placeholder="비밀번호"
+            style={{ width: '100%', padding: '8px 10px', border: '1px solid #c7cbd1', borderRadius: 4 }}
+          />
+          {error && (
+            <div className="banner banner-warning" style={{ marginTop: 10, marginBottom: 0 }}>
+              비밀번호가 올바르지 않습니다.
+            </div>
+          )}
+          <button className="btn btn-primary" type="submit" style={{ marginTop: 12, width: '100%' }}>
+            확인
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminPage() {
+  return (
+    <AdminGate>
+      <AdminConsole />
+    </AdminGate>
+  )
+}
+
+function AdminConsole() {
   const [active, setActive] = useState(SECTIONS[0].key)
   const ActiveComponent = SECTIONS.find((s) => s.key === active)?.Component ?? (() => null)
 
