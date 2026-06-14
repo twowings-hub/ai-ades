@@ -15,7 +15,7 @@ import admin
 import approval
 import notifier
 import recipe_db
-from bayesian_opt import suggest_params
+from bayesian_opt import _search_space, suggest_params
 from db import QUALITY_SCORE, get_connection, judge_quality
 from llm_explainer import generate_explanation, generate_result_evaluation
 from responses import make_response as _response
@@ -95,8 +95,50 @@ def _call_predict(params: dict, m1_length: float, m2_length: float, thickness: f
     return body["data"]
 
 
+def _param_neighbors(param: str, current: float, space: dict) -> list[float]:
+    """탐색공간 안에서 한 파라미터를 한 단계 위/아래로 옮긴 값을 반환한다 (하드코딩 금지, .env 기준)."""
+    if param == "power":
+        pmin, pmax = space["power"]
+        step = max(1.0, round((pmax - pmin) * 0.1, 1))  # 범위의 10%를 한 스텝으로
+        up, down = round(min(current + step, pmax), 1), round(max(current - step, pmin), 1)
+        return [v for v in (up, down) if v != current]
+    vals = sorted(set(space[param]))
+    i = min(range(len(vals)), key=lambda j: abs(vals[j] - current))  # 현재값에 가장 가까운 인덱스
+    return [vals[j] for j in (i + 1, i - 1) if 0 <= j < len(vals)]
+
+
+def _local_sensitivity(context: dict) -> str | None:
+    """조정 가능한 4개 파라미터를 각각 한 단계씩 바꿨을 때 모델이 예측하는 Depth 변화를 계산한다.
+
+    SHAP(왜 그렇게 예측됐나)에 더해, '어느 노브를 어느 방향으로 바꾸면 Depth가 얼마나 변하나'를
+    실제 모델 반응으로 보여줘 전문가 조정 제안의 신뢰도를 높인다 (방법 B, 국소 What-if).
+    """
+    base = {k: context[k] for k in ("speed", "defocus", "frequency", "power")}
+    m1, m2, th = context["m1_length"], context["m2_length"], context.get("thickness")
+    base_depth = context["pred_depth"]
+    space = _search_space()
+
+    lines = []
+    for param in ("speed", "defocus", "frequency", "power"):
+        for val in _param_neighbors(param, base[param], space):
+            trial = {**base, param: val}
+            try:
+                pred = _call_predict(trial, m1, m2, th)
+            except Exception:
+                continue
+            delta = pred["pred_depth"] - base_depth
+            lines.append(f"- {param} {base[param]}→{val}: Depth {delta:+.1f}μm")
+    return "\n".join(lines) if lines else None
+
+
 def _generate_explanation_bg(suggestion_id: str, context: dict):
     """LLM 설명을 백그라운드에서 생성하고 SUGGESTIONS에 채워 넣는다 (응답 지연 방지)"""
+    # 국소 민감도(What-if)를 계산해 컨텍스트에 추가한다 (실패해도 설명 생성은 진행)
+    try:
+        context["whatif_summary"] = _local_sensitivity(context)
+    except Exception:
+        context["whatif_summary"] = None
+
     explanation = generate_explanation(context)
     suggestion = SUGGESTIONS.get(suggestion_id)
     if suggestion is not None:
@@ -165,12 +207,17 @@ def doe_suggest(req: DoeSuggestRequest, background_tasks: BackgroundTasks):
         {
             "m1_length": req.m1_length,
             "m2_length": req.m2_length,
+            "thickness": req.thickness,
             "speed": suggested_params["speed"],
             "defocus": suggested_params["defocus"],
             "frequency": suggested_params["frequency"],
             "power": suggested_params["power"],
             "pred_depth": pred["pred_depth"],
             "pred_quality": pred["pred_quality"],
+            # 전문가 해석용: SHAP 기여도 + OK 목표 밴드(.env 기준, 하드코딩 금지)
+            "shap_values": pred["shap_values"],
+            "depth_ok_min": float(os.getenv("DEPTH_OK_MIN", 0.0)),
+            "depth_ok_max": float(os.getenv("DEPTH_OK_MAX", 25.0)),
             "doe_attempt": doe_attempt,
         },
     )

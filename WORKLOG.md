@@ -548,3 +548,16 @@
 - `frontend/src/config/adminAuth.js`: `ADMIN_AUTH_ENABLED=true`로 켜고 `ADMIN_AUTH_TEST_BYPASS=true` 신규 플래그 추가(운영 전환 시 false면 실제 비번 검증)
 - `frontend/src/pages/AdminPage.jsx` `AdminGate`: 전체화면 카드 → **modal-overlay 팝업**으로 변경, "테스트 단계" 안내 배너, 바이패스 시 비번 검증 생략·세션 기억 안 함(진입 때마다 모달), [취소]는 홈 이동(useNavigate)
 - HMR 즉시 반영(재빌드 불필요)
+
+### 3. SHAP 전문가 해석 → 최적 조정 방향 제시 (방법 A+B)
+- 배경: 기존 LLM 설명 프롬프트에 **SHAP 값이 아예 전달되지 않아** 일반적 추천 문구만 생성됨. SHAP를 해석해 "무엇을 어느 방향으로 바꿔야 OK에 드나"로 연결
+- **방법 A — SHAP를 전문가 프롬프트에 주입** (`llm_explainer.py`)
+  - `PROMPT_TEMPLATE`를 "가공 조건 최적화 전문가" 역할로 교체: SHAP 상위 5개 기여도(방향 포함)·OK 목표 밴드·변수 관계(에너지밀도=Power/Speed)·탐색공간 제약을 컨텍스트로 제공
+  - `_format_shap()` + 한국어 라벨(`_FEATURE_LABELS_KO`) 추가. 출력은 ①SHAP 근거 해석 ②조정 제안(탐색공간 내) ③실측 확인 권고
+  - `doe_routes.py`: 제안 시 LLM 컨텍스트에 `shap_values`·`thickness`·`depth_ok_min/max`(.env 기준) 추가
+- **방법 B — 국소 What-if 민감도** (`doe_routes.py`)
+  - `_param_neighbors()`: 탐색공간(`bayesian_opt._search_space()` 재사용, .env 기준) 안에서 각 파라미터 한 단계 위/아래 값 산출(Power는 범위 10%를 한 스텝)
+  - `_local_sensitivity()`: 4개 조정 파라미터를 각각 한 단계씩 바꿔 `/predict` → `param 현재값→변경값: Depth ±Nμm`. **백그라운드 작업**에서 수행(응답 지연 없음)
+  - 프롬프트에 `[국소 What-if]` 섹션 추가 + 조정 제안 시 그 Δdepth를 직접 근거로 삼도록 지시
+- 검증: execution-agent 재빌드 후 `/doe/suggest`→설명 폴링. LLM이 SHAP 해석 + **실제 What-if 값**(예: "Speed 1000→500 시 Depth +4.2μm") 인용해 조정 방향 제시 확인. 승인 화면 "AI 설명" 패널에 그대로 반영(프론트 변경·DB 적재 없음)
+- 후속: "정확히 몇 W에서 OK"까지는 Power 스윕 곡선(B 확장)으로 보완 가능 — 백로그

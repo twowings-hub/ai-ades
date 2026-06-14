@@ -13,14 +13,29 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-PROMPT_TEMPLATE = """레이저 가공 AI Auto DOE 제안입니다.
-소재 조건: M1 {m1_length}mm + M2 {m2_length}mm
-제안 파라미터: Speed={speed}mm/s, Defocus={defocus}mm, Frequency={frequency}kHz, Power={power}W
-예측 결과: Depth={pred_depth}μm, 판정={pred_quality}
-시도 횟수: {doe_attempt}회차
+PROMPT_TEMPLATE = """당신은 CO2 레이저로 Glass(M1)+Film(M2) 적층 소재를 절단하는 공정의 가공 조건 최적화 전문가입니다.
+아래는 AI Auto DOE가 제안한 다음 실험 조건과, 모델 예측의 근거(SHAP 기여도)입니다.
 
-운영자에게 이 조건을 추천하는 이유를 2~3문장으로 설명해주세요.
-반드시 한국어로만 답변하고, 한자나 중국어, 영어 단어를 섞지 마세요."""
+[소재 조건] M1 {m1_length}mm + M2 {m2_length}mm, Thickness {thickness}μm
+[제안 파라미터] Speed={speed}mm/s, Defocus={defocus}mm, Frequency={frequency}kHz, Power={power}W
+[모델 예측] Depth={pred_depth}μm → 판정 {pred_quality}
+[목표] OK 판정 = Depth {depth_ok_min}μm 초과 ~ {depth_ok_max}μm 이하
+[시도] {doe_attempt}회차
+
+[SHAP — 각 변수가 이 Depth 예측에 기여한 정도 (양수=Depth를 키운 방향, 음수=줄인 방향)]
+{shap_summary}
+
+[국소 What-if — 한 파라미터만 한 단계 바꿨을 때 모델이 예측한 Depth 변화 (조정 방향 판단의 직접 근거)]
+{whatif_summary}
+
+[참고: 변수 관계] 에너지 밀도 = Power / Speed (클수록 Depth가 커지는 경향). 즉 Power를 올리거나 Speed를 낮추면 에너지 밀도가 커집니다.
+
+전문가로서 아래를 2~4문장의 한국어로 설명하세요.
+1) 위 SHAP 상위 변수를 근거로, 현재 조건이 왜 그렇게 예측됐는지 해석.
+2) 판정이 OK이면 이 조건이 적절한 이유를, OK가 아니면 운영자가 조정 가능한 4개 파라미터(Speed/Defocus/Frequency/Power) 중 무엇을 어느 방향으로 바꾸면 OK에 가까워질지 한 가지를 구체적으로 제안. 이때 위 '국소 What-if'의 Depth 변화량을 직접 근거로 삼아 방향과 크기를 정하세요. 단, 탐색공간(Speed 200/500/1000, Defocus 0~4, Frequency 100/200, Power 2.8~59.8) 안에서만 제안하세요.
+3) 이는 모델 기반 제안이므로 실측 확인이 필요하다는 점을 한 문장으로 덧붙이세요.
+
+반드시 한국어 한글로만 답변하고, 한자나 중국어, 영어 단어를 섞지 마세요."""
 
 RESULT_PROMPT_TEMPLATE = """레이저 가공 AI Auto DOE 실험 결과 보고입니다.
 소재 조건: M1 {m1_length}mm + M2 {m2_length}mm
@@ -46,16 +61,51 @@ def reinitialize(provider: str, model: str):
     _STATE["model"] = model
 
 
+# SHAP feature 키 → 프롬프트용 한국어 라벨 (원본 입력 + 파생 변수)
+_FEATURE_LABELS_KO = {
+    "speed": "Speed(속도)",
+    "defocus": "Defocus(초점)",
+    "frequency": "Frequency(주파수)",
+    "power": "Power(출력)",
+    "thickness": "Thickness(두께)",
+    "m1_length": "M1 길이",
+    "m2_length": "M2 길이",
+    "energy_density": "에너지 밀도(Power/Speed)",
+    "normalized_power": "정규화 출력",
+    "power_x_defocus": "출력×초점",
+    "freq_x_power": "주파수×출력",
+    "thickness_ratio": "두께 비율",
+}
+
+
+def _format_shap(shap_values: dict | None, top_n: int = 5) -> str:
+    """SHAP 기여도를 |값| 큰 순으로 상위 top_n개만 프롬프트용 문자열로 만든다."""
+    if not shap_values:
+        return "(SHAP 정보 없음)"
+    items = sorted(shap_values.items(), key=lambda kv: abs(kv[1]), reverse=True)[:top_n]
+    lines = []
+    for feat, val in items:
+        label = _FEATURE_LABELS_KO.get(feat, feat)
+        direction = "Depth를 키움" if val >= 0 else "Depth를 줄임"
+        lines.append(f"- {label}: {val:+.2f} ({direction})")
+    return "\n".join(lines)
+
+
 def _build_prompt(context: dict) -> str:
     return PROMPT_TEMPLATE.format(
         m1_length=context["m1_length"],
         m2_length=context["m2_length"],
+        thickness=context.get("thickness", "-"),
         speed=context["speed"],
         defocus=context["defocus"],
         frequency=context["frequency"],
         power=context["power"],
         pred_depth=context["pred_depth"],
         pred_quality=context["pred_quality"],
+        depth_ok_min=context.get("depth_ok_min", 0.0),
+        depth_ok_max=context.get("depth_ok_max", 25.0),
+        shap_summary=_format_shap(context.get("shap_values")),
+        whatif_summary=context.get("whatif_summary") or "(국소 민감도 정보 없음)",
         doe_attempt=context["doe_attempt"],
     )
 
