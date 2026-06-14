@@ -489,3 +489,45 @@
 ### 다음 단계
 - 본 세션 변경사항 git commit 미완료(이전 세션 누적분 포함)
 - Phase 4 마무리: 승인화면 수정입력 탐색공간 가드(선택), 메뉴-SYSTEM_GUIDE 동기화 점검, 완료 보고 후 Phase 5 사전 준비물 착수
+
+## 전체 UI 산업용 톤 리디자인 + 자동 알림(사내 SMTP/Grafana) + 메일 서버 설정 메뉴 (2026-06-14)
+
+### 1. 전체 UI 리디자인 — 차분한 산업용(refined-industrial) 톤 (`ui-redesign` 브랜치, 14커밋)
+- 공개 `frontend-design` 스킬 원칙을 직접 적용(플러그인 미활성). 작업 전 안전망: 태그 `ui-redesign-base`(=리디자인 직전) + 별도 브랜치
+- 일관 디자인 언어: 헤더 모노스페이스 워드마크+`LASER PROCESS CONSOLE` 라벨+상단 액센트 라인 / 섹션 헤더 액센트 좌측 바 / 수치 판독값·입력 모노스페이스+각진(4px) 모서리(계기판 느낌) / 활성 강조는 네비탭·관리자탭·채팅세션 모두 동일 액센트 틴트 `rgba(37,99,235,0.08)`
+- 적용 화면: Layout, 실험조건, AI제안승인, 결과보고, 레시피조회, 실험이력, AI채팅, 관리자 셸+10섹션(시스템상태/서비스/LLM/재학습/판정기준/소재종류/사용자/알림/감사로그/데이터)
+- 개선: 레시피 조회 판정을 텍스트→pill 의미색으로 통일. 시스템상태 학습지표 표 라벨 한 줄(`.kv-table--labels-nowrap` 모디파이어 추가). 감사로그 운영자·시각 컬럼 nowrap → 행 높이 59→38px
+- 안전원칙: 로직·핸들러·상태 className 무변경(style 속성만 교체), 메뉴 라벨/라우트 무변경(SYSTEM_GUIDE 동기화 불필요), 외부 폰트 미사용(오프라인 설비 안전)
+- 검증: 화면별 vite build + eslint(베이스 대조로 신규 에러 0 확인) + Playwright 스모크(쓰기/DB 영향 작업은 미실행). 검증 방법은 메모리 `ades-ui-smoke-test`에 기록(npx 캐시 playwright + Chrome 채널)
+
+### 2. 자동 알림 연결 — 사내 메일(SMTP) + Grafana 알림판 (`feature/notifications` 브랜치)
+- 배경: 고객사 **폐쇄망(외부 접속 불가)** → 외부 Slack/Gmail 대신 사내 SMTP + Grafana(사내 DB 직접 조회)
+- DB: `notifications` 이벤트 로그 테이블 신설(메일·Grafana 공통 백본). schema.sql + 운영 DB 반영
+- `notifier.py` 신설: 설정 로드 + `smtplib` 사내 SMTP 발송 + DB 기록. **예외격리**(발송 실패가 결과저장 트랜잭션을 깨지 않음)
+- `/doe/result` OK/실패 분기에 자동 알림 연결(`BackgroundTasks` 비차단). `/notifications/test`를 실제 메일 발송으로 교체(기존 'SMTP 미구현' 제거)
+- `.env(.example)` `SMTP_*` 추가 — 비우면 메일 건너뛰고 DB/Grafana만 동작
+- Grafana `notifications_overview.json`: 기존 `PostgreSQL-ades` 데이터소스로 판정분포/최근실패/알림이력 3패널(폐쇄망 동작)
+- 모델 성능 저하 알림은 이번 범위 제외(임계값 정의 필요 — OK/실패만 연결)
+
+### 3. 관리자 콘솔 '메일 서버 설정'(SMTP) 메뉴 (`feature/smtp-settings` 브랜치)
+- 동기: SMTP가 `.env`에만 있어 변경 시 컨테이너 재빌드 필요 → UI에서 설정해 **DB 저장·런타임 반영**
+- `notification_settings`에 `smtp_host/port/user/password/from/use_tls` 컬럼 추가(운영 DB + schema.sql)
+- `notifier._resolve_smtp()`: SMTP 접속값을 **DB 우선·.env 폴백**으로 해석 → 재빌드 없이 즉시 반영
+- admin: 설정 GET/PATCH에 `smtp_*` 포함, **비밀번호 마스킹**(응답엔 `smtp_password_set`만, 빈 값=변경 안 함), INSERT 경로 동적화
+- frontend: 관리자 콘솔에 `MailServerSection`(메일 서버 설정) 탭 신설(알림설정↔감사로그 사이). chat.py SYSTEM_GUIDE 관리자 안내 보강
+- 검증: GET/PATCH/마스킹 동작, **DB 저장값으로 루프백 SMTP 실제 발송(sent)** 확인
+
+### 4. Gmail SMTP 실발송 검증 (개발 PC 한정)
+- 개발 PC(인터넷 가능)에서 실제 메일 검증. 컨테이너 → `smtp.gmail.com:587` egress 확인
+- 설정값: host `smtp.gmail.com` / port 587 / user·from = Gmail 주소 / 비번 = **Google 앱 비밀번호(16자리, 2단계 인증 필요)** / **STARTTLS ☑**
+- 트러블슈팅: `SMTP AUTH extension not supported` = STARTTLS 꺼짐(`smtp_use_tls=f`) 상태에서 AUTH 시도 → STARTTLS 켜니 `Email: sent` 성공
+- 주의: 폐쇄망에선 Gmail 불가 → 같은 화면에서 사내 SMTP로 교체(DB 저장이라 값만 변경)
+
+### 5. main 병합
+- 3개 브랜치를 `--no-ff`로 main 병합(파일 비중첩으로 충돌 0): `ui-redesign` → `feature/notifications` → `feature/smtp-settings`
+- 병합 후 통합 빌드 통과. origin push는 미수행(요청 시), 병합 브랜치·`ui-redesign-base` 태그 보존
+
+### 다음 단계
+- 자동 알림 실제 동작(실험 OK/실패 → 메일+Grafana) 엔드투엔드 검증(알림 설정 토글 확인)
+- 모델 성능 저하 알림(임계값 정의 후) 추가 검토
+- 병합 브랜치 정리 및 origin push 여부 결정
