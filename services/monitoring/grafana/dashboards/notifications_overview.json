@@ -1,0 +1,102 @@
+{
+  "title": "AI-ADES 알림 / 이벤트 모니터링",
+  "uid": "ades-notifications",
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-90d", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "판정 분포 (전체 실험)",
+      "type": "piechart",
+      "datasource": { "type": "postgres", "uid": "postgres-ades" },
+      "gridPos": { "h": 9, "w": 8, "x": 0, "y": 0 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "pieType": "donut",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": true }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "postgres-ades" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT quality AS \"metric\", count(*)::int AS \"value\" FROM experiments GROUP BY quality ORDER BY 2 DESC"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "최근 가공 실패 (미가공 / 과가공 / NG)",
+      "description": "quality가 OK가 아닌 실험을 최신순으로 표시합니다. 폐쇄망에서 사내 DB만 읽습니다.",
+      "type": "table",
+      "datasource": { "type": "postgres", "uid": "postgres-ades" },
+      "gridPos": { "h": 9, "w": 16, "x": 8, "y": 0 },
+      "options": { "showHeader": true },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "판정" },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "미가공": { "color": "orange", "index": 0 }, "과가공": { "color": "orange", "index": 1 }, "NG": { "color": "red", "index": 2 } } }
+                ]
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "postgres-ades" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT to_char(created_at, 'MM-DD HH24:MI') AS \"시각\", exp_no AS \"실험번호\", quality AS \"판정\", m1_glass AS \"M1\", m2_film AS \"M2\", thickness_um AS \"Thk(um)\", depth_um AS \"Depth(um)\", kerf_um AS \"Kerf(um)\" FROM experiments WHERE quality <> 'OK' ORDER BY created_at DESC LIMIT 50"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "최근 알림 발송 이력 (notifications)",
+      "description": "OK/실패 자동 알림이 발송된 이력입니다. email발송 컬럼: sent=성공, 미설정=수신메일/SMTP 없음, 실패(...)=발송 오류.",
+      "type": "table",
+      "datasource": { "type": "postgres", "uid": "postgres-ades" },
+      "gridPos": { "h": 11, "w": 24, "x": 0, "y": 9 },
+      "options": { "showHeader": true },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "이벤트" },
+            "properties": [
+              {
+                "id": "mappings",
+                "value": [
+                  { "type": "value", "options": { "ok": { "color": "green", "index": 0 }, "failure": { "color": "red", "index": 1 } } }
+                ]
+              },
+              { "id": "custom.cellOptions", "value": { "type": "color-text" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "postgres", "uid": "postgres-ades" },
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT to_char(created_at, 'MM-DD HH24:MI') AS \"시각\", event_type AS \"이벤트\", quality AS \"판정\", exp_no AS \"실험번호\", message AS \"메시지\", email_status AS \"email발송\" FROM notifications ORDER BY created_at DESC LIMIT 50"
+        }
+      ]
+    }
+  ]
+}
