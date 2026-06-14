@@ -3,6 +3,21 @@ import { executionApi } from '../../api/client'
 
 const CATEGORY_LABELS = { m1: 'M1 (Glass)', m2: 'M2 (Film)' }
 
+// 산업용 콘솔 톤: 섹션 헤더 액센트 좌측 바, 폼 입력 각진 모서리, 목록 표 모노스페이스 — 타 화면과 통일
+const sectionHeadStyle = {
+  paddingLeft: 8,
+  borderLeft: '3px solid var(--accent)',
+  lineHeight: 1.2,
+}
+const formInputStyle = {
+  padding: '8px 10px',
+  border: '1px solid #c7cbd1',
+  borderRadius: 4,
+}
+const readingStyle = {
+  fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
+}
+
 export default function MaterialTypesSection() {
   const [types, setTypes] = useState([])
   const [error, setError] = useState(null)
@@ -91,14 +106,14 @@ export default function MaterialTypesSection() {
       {error && <div className="banner banner-warning">{error}</div>}
 
       <div className="card" style={{ marginBottom: 16 }}>
-        <h3>소재 종류 추가</h3>
+        <h3 style={sectionHeadStyle}>소재 종류 추가</h3>
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             구분
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 140 }}
+              style={{ ...formInputStyle, width: 140 }}
             >
               <option value="m1">M1 (Glass)</option>
               <option value="m2">M2 (Film)</option>
@@ -111,7 +126,7 @@ export default function MaterialTypesSection() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="예: Borosilicate Glass"
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 220 }}
+              style={{ ...formInputStyle, width: 220 }}
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -121,7 +136,7 @@ export default function MaterialTypesSection() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="예: 고객사 B 전용 소재"
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 260 }}
+              style={{ ...formInputStyle, width: 260 }}
             />
           </label>
           <button className="btn btn-primary" disabled={!name || creating} onClick={handleCreate}>
@@ -131,9 +146,9 @@ export default function MaterialTypesSection() {
       </div>
 
       <div className="card">
-        <h3>소재 종류 목록</h3>
+        <h3 style={sectionHeadStyle}>소재 종류 목록</h3>
         <div style={{ overflowX: 'auto', ...(types.length >= 10 ? { maxHeight: 400, overflowY: 'auto' } : {}) }}>
-          <table className="admin-table">
+          <table className="admin-table" style={readingStyle}>
             <thead style={types.length >= 10 ? { position: 'sticky', top: 0, zIndex: 1 } : undefined}>
               <tr>
                 <th style={{ width: 90 }}>구분</th>

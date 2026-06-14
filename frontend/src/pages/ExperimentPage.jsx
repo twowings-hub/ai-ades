@@ -9,6 +9,28 @@ const M2_PRESETS = [10, 25, 50]
 // M1 입력 시 M2 length 기본값을 M1 × M2_RATIO로 자동 설정 (학습 데이터 기준 M2 = M1 × 2.5)
 const M2_RATIO = 2.5
 
+// 산업용 콘솔 톤 공통 스타일: 수치 입력/단위는 모노스페이스+각진 모서리(계기판 느낌), 섹션 헤더는 액센트 좌측 바
+const numInputStyle = {
+  padding: '6px 9px',
+  border: '1px solid #c7cbd1',
+  borderRadius: 4,
+  width: 140,
+  fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
+  fontSize: 14,
+}
+const unitStyle = {
+  color: 'var(--text-muted)',
+  fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
+  fontSize: 13,
+}
+const sectionHeadStyle = {
+  fontSize: 14,
+  marginBottom: 8,
+  paddingLeft: 8,
+  borderLeft: '3px solid var(--accent)',
+  lineHeight: 1.2,
+}
+
 export default function ExperimentPage() {
   const navigate = useNavigate()
   const { session, startNewMaterial, setSuggestion } = useSession()
@@ -157,7 +179,7 @@ export default function ExperimentPage() {
       </p>
 
       <div className="card card-compact" style={{ marginTop: 8 }}>
-        <h3 style={{ fontSize: 14, marginBottom: 6 }}>M1 소재 종류</h3>
+        <h3 style={sectionHeadStyle}>M1 소재 종류</h3>
         <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
           {materialTypes.m1.map((t) => (
             <button
@@ -174,7 +196,7 @@ export default function ExperimentPage() {
           )}
         </div>
 
-        <h3 style={{ fontSize: 14, marginBottom: 6 }}>M1 ({m1Glass ?? '-'}) Length</h3>
+        <h3 style={sectionHeadStyle}>M1 ({m1Glass ?? '-'}) Length</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
           <input
             type="number"
@@ -186,9 +208,9 @@ export default function ExperimentPage() {
               setM2Length(v === null || Number.isNaN(v) ? null : v * M2_RATIO)
             }}
             placeholder="예: 10"
-            style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, width: 140 }}
+            style={numInputStyle}
           />
-          <span style={{ color: 'var(--text-muted)' }}>mm</span>
+          <span style={unitStyle}>mm</span>
           <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
             {M1_PRESETS.map((v) => (
               <button
@@ -209,7 +231,7 @@ export default function ExperimentPage() {
       </div>
 
       <div className="card card-compact" style={{ marginTop: 8 }}>
-        <h3 style={{ fontSize: 14, marginBottom: 6 }}>M2 소재 종류</h3>
+        <h3 style={sectionHeadStyle}>M2 소재 종류</h3>
         <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
           {materialTypes.m2.map((t) => (
             <button
@@ -226,7 +248,7 @@ export default function ExperimentPage() {
           )}
         </div>
 
-        <h3 style={{ fontSize: 14, marginBottom: 6 }}>M2 ({m2Film ?? '-'}) Length</h3>
+        <h3 style={sectionHeadStyle}>M2 ({m2Film ?? '-'}) Length</h3>
         <p style={{ color: 'var(--text-muted)', margin: '0 0 6px', fontSize: '0.85em' }}>
           M1 입력 시 M1 × {M2_RATIO}로 자동 설정됩니다. 필요하면 직접 수정하세요.
         </p>
@@ -237,9 +259,9 @@ export default function ExperimentPage() {
             value={m2Length ?? ''}
             onChange={(e) => setM2Length(e.target.value === '' ? null : parseFloat(e.target.value))}
             placeholder="예: 25"
-            style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, width: 140 }}
+            style={numInputStyle}
           />
-          <span style={{ color: 'var(--text-muted)' }}>mm</span>
+          <span style={unitStyle}>mm</span>
           <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
             {M2_PRESETS.map((v) => (
               <button
@@ -260,7 +282,7 @@ export default function ExperimentPage() {
       </div>
 
       <div className="card card-compact" style={{ marginTop: 8 }}>
-        <h3 style={{ fontSize: 14, marginBottom: 6 }}>Thickness (실측값)</h3>
+        <h3 style={sectionHeadStyle}>Thickness (실측값)</h3>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <input
             type="number"
@@ -268,9 +290,9 @@ export default function ExperimentPage() {
             value={thickness}
             onChange={(e) => setThickness(e.target.value)}
             placeholder="예: 105.0"
-            style={{ padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, width: 140 }}
+            style={numInputStyle}
           />
-          <span style={{ color: 'var(--text-muted)' }}>μm</span>
+          <span style={unitStyle}>μm</span>
         </div>
         {thicknessOutOfRange && (
           <p style={{ color: 'var(--warn, #b45309)', marginTop: 6, fontSize: '0.85em' }}>

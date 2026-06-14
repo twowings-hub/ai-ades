@@ -25,6 +25,24 @@ const QUALITY_PILL = {
   NG: 'pill-danger',
 }
 
+// 산업용 콘솔 톤: 섹션 헤더 액센트 좌측 바, 수치 입력/판독값 모노스페이스(계기판 느낌) — 타 화면과 통일
+const sectionHeadStyle = {
+  paddingLeft: 8,
+  borderLeft: '3px solid var(--accent)',
+  lineHeight: 1.2,
+}
+const readingStyle = {
+  fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
+}
+const inputStyle = {
+  padding: '8px 10px',
+  border: '1px solid #c7cbd1',
+  borderRadius: 4,
+  width: 160,
+  fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
+  fontSize: 14,
+}
+
 export default function ResultPage() {
   const navigate = useNavigate()
   const { session, setSuggestion, addHistoryEntry } = useSession()
@@ -168,7 +186,7 @@ export default function ResultPage() {
       {error && <div className="banner banner-warning">{error}</div>}
 
       <div className="card">
-        <h3>승인된 파라미터 ({suggestion.doe_attempt}차)</h3>
+        <h3 style={sectionHeadStyle}>승인된 파라미터 ({suggestion.doe_attempt}차)</h3>
         <table className="table-bordered">
           <thead>
             <tr>
@@ -183,12 +201,12 @@ export default function ResultPage() {
           <tbody>
             <tr>
               {Object.keys(PARAM_LABELS).map((key) => (
-                <td key={key} style={{ textAlign: 'center' }}>
+                <td key={key} style={{ textAlign: 'center', ...readingStyle }}>
                   {finalParams[key]} {PARAM_UNITS[key]}
                 </td>
               ))}
-              <td style={{ textAlign: 'center' }}>{suggestion.pred_kerf} μm</td>
-              <td style={{ textAlign: 'center' }}>{suggestion.pred_depth} μm</td>
+              <td style={{ textAlign: 'center', ...readingStyle }}>{suggestion.pred_kerf} μm</td>
+              <td style={{ textAlign: 'center', ...readingStyle }}>{suggestion.pred_depth} μm</td>
               <td style={{ textAlign: 'center' }}>
                 <span className={`pill ${QUALITY_PILL[suggestion.pred_quality] ?? 'pill-muted'}`}>
                   {suggestion.pred_quality}
@@ -200,7 +218,7 @@ export default function ResultPage() {
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>
-        <h3>실측 결과 입력</h3>
+        <h3 style={sectionHeadStyle}>실측 결과 입력</h3>
         <div style={{ display: 'flex', gap: 24, marginBottom: 16 }}>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             Kerf (μm)
@@ -210,7 +228,7 @@ export default function ResultPage() {
               value={actualKerf}
               onChange={(e) => setActualKerf(e.target.value)}
               disabled={!!result}
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 160 }}
+              style={inputStyle}
             />
           </label>
           <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -221,7 +239,7 @@ export default function ResultPage() {
               value={actualDepth}
               onChange={(e) => setActualDepth(e.target.value)}
               disabled={!!result}
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 160 }}
+              style={inputStyle}
             />
           </label>
         </div>
@@ -320,11 +338,11 @@ export default function ResultPage() {
                 </tr>
                 <tr>
                   <td>실측 Kerf</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{actualKerf} μm</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, ...readingStyle }}>{actualKerf} μm</td>
                 </tr>
                 <tr>
                   <td>실측 Depth</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{actualDepth} μm</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700, ...readingStyle }}>{actualDepth} μm</td>
                 </tr>
                 <tr>
                   <td>사전 판정 미리보기</td>
@@ -373,7 +391,7 @@ export default function ResultPage() {
 
       {session.experimentHistory.length > 0 && (
         <div className="card" style={{ marginTop: 16 }}>
-          <h3>Auto DOE 수렴 이력 (이번 세션)</h3>
+          <h3 style={sectionHeadStyle}>Auto DOE 수렴 이력 (이번 세션)</h3>
           <table>
             <thead>
               <tr>
@@ -391,10 +409,10 @@ export default function ResultPage() {
                 <tr key={idx}>
                   <td>{idx + 1}</td>
                   {Object.keys(PARAM_LABELS).map((key) => (
-                    <td key={key}>{entry[key]}</td>
+                    <td key={key} style={readingStyle}>{entry[key]}</td>
                   ))}
-                  <td>{entry.actual_kerf} μm</td>
-                  <td>{entry.actual_depth} μm</td>
+                  <td style={readingStyle}>{entry.actual_kerf} μm</td>
+                  <td style={readingStyle}>{entry.actual_depth} μm</td>
                   <td>
                     <span className={`pill ${QUALITY_PILL[entry.quality] ?? 'pill-muted'}`}>{entry.quality}</span>
                   </td>

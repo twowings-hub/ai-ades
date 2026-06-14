@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react'
 import { executionApi } from '../../api/client'
 
+// 산업용 콘솔 톤: 섹션 헤더 액센트 좌측 바, 셀렉트 각진 모서리 — 타 화면과 통일
+const sectionHeadStyle = {
+  paddingLeft: 8,
+  borderLeft: '3px solid var(--accent)',
+  lineHeight: 1.2,
+}
+const formInputStyle = {
+  padding: '8px 10px',
+  border: '1px solid #c7cbd1',
+  borderRadius: 4,
+}
+
 export default function LlmSection() {
   const [models, setModels] = useState({ ollama: [], api: {}, current: null })
   const [provider, setProvider] = useState('ollama')
@@ -66,7 +78,7 @@ export default function LlmSection() {
       {error && <div className="banner banner-warning">{error}</div>}
 
       <div className="card">
-        <h3>프로바이더 / 모델 전환</h3>
+        <h3 style={sectionHeadStyle}>프로바이더 / 모델 전환</h3>
         {models.current && (
           <p style={{ color: 'var(--text-muted)', marginBottom: 12 }}>
             현재 적용 중: <strong>{models.current.provider}</strong> / <strong>{models.current.model}</strong>
@@ -90,7 +102,7 @@ export default function LlmSection() {
             <select
               value={provider}
               onChange={(e) => { setProvider(e.target.value); setModel('') }}
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 180 }}
+              style={{ ...formInputStyle, width: 180 }}
             >
               <option value="ollama">ollama</option>
               <option value="claude">claude</option>
@@ -104,7 +116,7 @@ export default function LlmSection() {
               <select
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
-                style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 240 }}
+                style={{ ...formInputStyle, width: 240 }}
               >
                 <option value="">선택하세요</option>
                 {models.ollama.map((m) => (
@@ -115,7 +127,7 @@ export default function LlmSection() {
               <select
                 value={model}
                 onChange={(e) => setModel(e.target.value)}
-                style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 240 }}
+                style={{ ...formInputStyle, width: 240 }}
               >
                 <option value="">선택하세요</option>
                 {currentOptions.map((m) => (

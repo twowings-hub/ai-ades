@@ -3,6 +3,16 @@ import { dataPrepApi, executionApi } from '../../api/client'
 
 const QUALITY_LABELS = { ok: 'OK', underprocess: '미가공', overprocess: '과가공', ng: 'NG' }
 
+// 산업용 콘솔 톤: 섹션 헤더 액센트 좌측 바, 표 데이터 모노스페이스(계기판 느낌) — 타 화면과 통일
+const sectionHeadStyle = {
+  paddingLeft: 8,
+  borderLeft: '3px solid var(--accent)',
+  lineHeight: 1.2,
+}
+const readingStyle = {
+  fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
+}
+
 /**
  * 표 헤더 제목 자체를 클릭하면 옵션 목록(전체/미가공/과가공 등)이 뜨는 엑셀식 컬럼 필터.
  * 스크롤 컨테이너에 잘리지 않도록 메뉴는 position:fixed로 트리거 위치에 띄운다.
@@ -253,9 +263,9 @@ export default function DataManagementSection() {
       {error && <div className="banner banner-warning">{error}</div>}
 
       <div className="card" style={{ padding: '12px 16px 8px', marginBottom: 0 }}>
-        <h3>테이블 현황</h3>
+        <h3 style={sectionHeadStyle}>테이블 현황</h3>
         {stats && (
-          <table className="admin-table">
+          <table className="admin-table" style={readingStyle}>
             <thead>
               <tr>
                 <th style={{ width: 140 }}>테이블</th>
@@ -293,7 +303,7 @@ export default function DataManagementSection() {
       </div>
 
       <div className="card" style={{ padding: '4px 16px 12px', marginBottom: 10, marginTop: 4 }}>
-        <h3>학습 데이터 업로드</h3>
+        <h3 style={sectionHeadStyle}>학습 데이터 업로드</h3>
         <p style={{ color: 'var(--text-muted)', marginBottom: 8 }}>
           POC와 동일한 형식(Data 시트 + Sheet1 시트, "No." 행순서 1:1 조인)의 Excel 파일만 업로드하세요.
           기존 No.와 겹치는 행은 자동으로 무시됩니다.
@@ -339,7 +349,7 @@ export default function DataManagementSection() {
       </div>
 
       <div className="card" style={{ padding: '12px 16px', marginBottom: 10 }}>
-        <h3>백업 / 내보내기</h3>
+        <h3 style={sectionHeadStyle}>백업 / 내보내기</h3>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="btn btn-primary" disabled={backing} onClick={handleBackup}>
             {backing ? <span className="spinner" /> : 'DB 백업 (pg_dump)'}
@@ -354,7 +364,7 @@ export default function DataManagementSection() {
       </div>
 
       <div className="card" style={{ padding: '12px 16px' }}>
-        <h3>테스트 데이터 정리</h3>
+        <h3 style={sectionHeadStyle}>테스트 데이터 정리</h3>
         <p style={{ color: 'var(--text-muted)', marginBottom: 8 }}>
           시나리오 테스트 등으로 생성된 Auto DOE 실험 중, <b>아직 재학습에 반영되지 않은</b> 항목만 표시됩니다.
           이미 재학습에 반영된 데이터나 Excel로 업로드된 원본 데이터는 안전을 위해 삭제 대상에서 제외됩니다.
@@ -372,7 +382,7 @@ export default function DataManagementSection() {
         ) : (
           <>
             <div style={{ overflowX: 'auto', maxHeight: 240, overflowY: 'auto' }}>
-              <table className="admin-table">
+              <table className="admin-table" style={readingStyle}>
                 <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                   <tr>
                     <th style={{ width: 30, textAlign: 'center' }}>

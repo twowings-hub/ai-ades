@@ -7,6 +7,15 @@ const LLM_OPTIONS = [
   { value: 'ollama', short: 'Ollama', label: 'Ollama (무료, 로컬)' },
 ]
 
+// 산업용 콘솔 톤(대화 화면은 가볍게): 사이드바 라벨 액센트 바, 선택 항목은 네비 탭과 동일한 액센트 틴트로 통일
+const sectionHeadStyle = {
+  paddingLeft: 8,
+  borderLeft: '3px solid var(--accent)',
+  lineHeight: 1.2,
+}
+const ACTIVE_TINT = 'rgba(37, 99, 235, 0.08)'
+const ACTIVE_BORDER = 'rgba(37, 99, 235, 0.35)'
+
 export default function ChatPage() {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
@@ -114,6 +123,9 @@ export default function ChatPage() {
           <button className="btn btn-primary" onClick={handleNewChat} style={{ width: '100%' }}>
             + 새 채팅
           </button>
+          <div style={{ ...sectionHeadStyle, fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', margin: '4px 0 2px' }}>
+            채팅 이력
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto', maxHeight: 440 }}>
             {sessions.length === 0 && (
               <p style={{ color: 'var(--text-muted)', fontSize: 13, padding: '4px 6px' }}>채팅 이력이 없습니다.</p>
@@ -128,10 +140,10 @@ export default function ChatPage() {
                   justifyContent: 'space-between',
                   gap: 4,
                   padding: '8px 10px',
-                  borderRadius: 6,
+                  borderRadius: 4,
                   cursor: 'pointer',
-                  background: s.id === currentSessionId ? 'var(--bg)' : 'transparent',
-                  border: s.id === currentSessionId ? '1px solid var(--border)' : '1px solid transparent',
+                  background: s.id === currentSessionId ? ACTIVE_TINT : 'transparent',
+                  border: s.id === currentSessionId ? `1px solid ${ACTIVE_BORDER}` : '1px solid transparent',
                 }}
               >
                 <span
@@ -201,7 +213,7 @@ export default function ChatPage() {
               disabled={loading}
               rows={2}
               placeholder="질문을 입력하세요 (Enter: 전송, Shift+Enter: 줄바꿈)"
-              style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, resize: 'vertical', fontFamily: 'inherit' }}
+              style={{ flex: 1, padding: '8px 10px', border: '1px solid #c7cbd1', borderRadius: 4, resize: 'vertical', fontFamily: 'inherit' }}
             />
             <div style={{ position: 'relative', alignSelf: 'flex-start' }}>
               <button

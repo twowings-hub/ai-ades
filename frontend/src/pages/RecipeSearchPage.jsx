@@ -5,6 +5,30 @@ import { executionApi } from '../api/client'
 const M1_PRESETS = [4, 10, 20]
 const M2_PRESETS = [10, 25, 50]
 
+// 산업용 콘솔 톤: 섹션 헤더 액센트 좌측 바, 표·입력 수치는 모노스페이스(계기판 느낌) — 타 화면과 통일
+const sectionHeadStyle = {
+  paddingLeft: 8,
+  borderLeft: '3px solid var(--accent)',
+  lineHeight: 1.2,
+}
+const readingStyle = {
+  fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
+}
+const inputBase = {
+  padding: '8px 10px',
+  border: '1px solid #c7cbd1',
+  borderRadius: 4,
+  fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
+  fontSize: 14,
+}
+// 판정 의미색 (타 화면과 동일 기준) — 레시피 목록의 판정도 pill로 통일
+const QUALITY_PILL = {
+  OK: 'pill-ok',
+  미가공: 'pill-warn',
+  과가공: 'pill-warn',
+  NG: 'pill-danger',
+}
+
 export default function RecipeSearchPage() {
   const [materialTypes, setMaterialTypes] = useState({ m1: [], m2: [] })
   const [m1Glass, setM1Glass] = useState(null)
@@ -99,7 +123,7 @@ export default function RecipeSearchPage() {
 
       {/* 입력 영역 */}
       <div className="card" style={{ marginTop: 16, paddingBottom: 8 }}>
-        <h3>M1 소재 종류</h3>
+        <h3 style={sectionHeadStyle}>M1 소재 종류</h3>
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {materialTypes.m1.map((t) => (
             <button
@@ -116,7 +140,7 @@ export default function RecipeSearchPage() {
           )}
         </div>
 
-        <h3>M2 소재 종류</h3>
+        <h3 style={sectionHeadStyle}>M2 소재 종류</h3>
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {materialTypes.m2.map((t) => (
             <button
@@ -143,7 +167,7 @@ export default function RecipeSearchPage() {
                 value={m1Length}
                 onChange={(e) => setM1Length(e.target.value === '' ? '' : parseFloat(e.target.value))}
                 placeholder="예: 10"
-                style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 120 }}
+                style={{ ...inputBase, width: 120 }}
               />
               <div style={{ display: 'flex', gap: 6 }}>
                 {M1_PRESETS.map((v) => (
@@ -168,7 +192,7 @@ export default function RecipeSearchPage() {
                 value={m2Length}
                 onChange={(e) => setM2Length(e.target.value === '' ? '' : parseFloat(e.target.value))}
                 placeholder="예: 25"
-                style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 120 }}
+                style={{ ...inputBase, width: 120 }}
               />
               <div style={{ display: 'flex', gap: 6 }}>
                 {M2_PRESETS.map((v) => (
@@ -192,7 +216,7 @@ export default function RecipeSearchPage() {
               value={thickness}
               onChange={(e) => setThickness(e.target.value)}
               placeholder="예: 105.0"
-              style={{ padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, width: 160 }}
+              style={{ ...inputBase, width: 160 }}
             />
           </label>
         </div>
@@ -244,7 +268,7 @@ export default function RecipeSearchPage() {
                       <th>승인일</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody style={readingStyle}>
                     {result.materialMatches.map((r) => (
                       <tr key={r.id} onClick={() => handleRowClick(r)} style={{ cursor: 'pointer' }}>
                         <td>{r.id}</td>
@@ -256,7 +280,7 @@ export default function RecipeSearchPage() {
                         <td>{r.opt_frequency}</td>
                         <td>{r.opt_power}</td>
                         <td>{r.pred_depth}</td>
-                        <td>{r.pred_quality}</td>
+                        <td><span className={`pill ${QUALITY_PILL[r.pred_quality] ?? 'pill-muted'}`}>{r.pred_quality}</span></td>
                         <td>{r.approved_by}</td>
                         <td>{r.created_at ? new Date(r.created_at).toLocaleDateString() : '-'}</td>
                       </tr>
@@ -277,18 +301,18 @@ export default function RecipeSearchPage() {
               : `⚠ ${result.message}`}
           </div>
 
-          <h3>소재 조건</h3>
+          <h3 style={sectionHeadStyle}>소재 조건</h3>
           <table style={{ marginBottom: 20 }}>
-            <tbody>
+            <tbody style={readingStyle}>
               <tr><td>M1</td><td>{result.recipe.m1_glass} {result.recipe.m1_length} mm</td></tr>
               <tr><td>M2</td><td>{result.recipe.m2_film} {result.recipe.m2_length} mm</td></tr>
               <tr><td>Thickness</td><td>{result.recipe.thickness} μm</td></tr>
             </tbody>
           </table>
 
-          <h3>레이저 가공 조건</h3>
+          <h3 style={sectionHeadStyle}>레이저 가공 조건</h3>
           <table style={{ marginBottom: 20 }}>
-            <tbody>
+            <tbody style={readingStyle}>
               <tr><td>Speed</td><td>{result.recipe.opt_speed} mm/s</td></tr>
               <tr><td>Defocus</td><td>{result.recipe.opt_defocus} mm</td></tr>
               <tr><td>Frequency</td><td>{result.recipe.opt_frequency} kHz</td></tr>
@@ -296,12 +320,12 @@ export default function RecipeSearchPage() {
             </tbody>
           </table>
 
-          <h3>예측 결과 / 이력</h3>
+          <h3 style={sectionHeadStyle}>예측 결과 / 이력</h3>
           <table>
-            <tbody>
+            <tbody style={readingStyle}>
               <tr><td>예측 Kerf</td><td>{result.recipe.pred_kerf} μm</td></tr>
               <tr><td>예측 Depth</td><td>{result.recipe.pred_depth} μm</td></tr>
-              <tr><td>판정</td><td>{result.recipe.pred_quality}</td></tr>
+              <tr><td>판정</td><td><span className={`pill ${QUALITY_PILL[result.recipe.pred_quality] ?? 'pill-muted'}`}>{result.recipe.pred_quality}</span></td></tr>
               <tr><td>신뢰도</td><td>{result.recipe.confidence != null ? `${(result.recipe.confidence * 100).toFixed(1)}%` : '-'}</td></tr>
               <tr><td>DOE 수렴 회차</td><td>{result.recipe.doe_attempts}</td></tr>
               <tr><td>승인자 / 일시</td><td>{result.recipe.approved_by} / {result.recipe.created_at ? new Date(result.recipe.created_at).toLocaleString() : '-'}</td></tr>
@@ -315,7 +339,7 @@ export default function RecipeSearchPage() {
 
       {/* 전체 레시피 목록 */}
       <div className="card" style={{ marginTop: 4, paddingTop: 10 }}>
-        <h3>전체 레시피 목록 ({recipes.length}건)</h3>
+        <h3 style={sectionHeadStyle}>전체 레시피 목록 ({recipes.length}건)</h3>
         <p style={{ color: 'var(--text-muted)', marginBottom: 8 }}>행을 클릭하면 위 입력 조건과 결과에 반영됩니다.</p>
         {listError && <div className="banner banner-warning">{listError}</div>}
 
@@ -338,7 +362,7 @@ export default function RecipeSearchPage() {
                 <th>승인일</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody style={readingStyle}>
               {recipes.map((r) => (
                 <tr key={r.id} onClick={() => handleRowClick(r)} style={{ cursor: 'pointer' }}>
                   <td>{r.id}</td>
@@ -350,7 +374,7 @@ export default function RecipeSearchPage() {
                   <td>{r.opt_frequency}</td>
                   <td>{r.opt_power}</td>
                   <td>{r.pred_depth}</td>
-                  <td>{r.pred_quality}</td>
+                  <td><span className={`pill ${QUALITY_PILL[r.pred_quality] ?? 'pill-muted'}`}>{r.pred_quality}</span></td>
                   <td>{r.approved_by}</td>
                   <td>{r.created_at ? new Date(r.created_at).toLocaleDateString() : '-'}</td>
                 </tr>

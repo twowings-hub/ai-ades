@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { executionApi } from '../../api/client'
 
+// 산업용 콘솔 톤: 섹션 헤더 액센트 좌측 바 — 타 화면과 통일
+const sectionHeadStyle = {
+  paddingLeft: 8,
+  borderLeft: '3px solid var(--accent)',
+  lineHeight: 1.2,
+}
+
 export default function RetrainSection() {
   const [status, setStatus] = useState(null)
   const [progress, setProgress] = useState(null)
@@ -81,7 +88,7 @@ export default function RetrainSection() {
 
       {progress && (
         <div className="card" style={{ marginBottom: 16 }}>
-          <h3>자동 재학습 진행도</h3>
+          <h3 style={sectionHeadStyle}>자동 재학습 진행도</h3>
           <p style={{ color: 'var(--text-muted)', marginBottom: 8 }}>
             마지막 학습 이후 누적된 실험이 {progress.threshold}건 이상이면 자동으로 재학습이 시작됩니다.
           </p>

@@ -34,6 +34,16 @@ const FEATURE_LABELS = {
   thickness_ratio: 'Thickness Ratio',
 }
 
+// 산업용 콘솔 톤: 섹션 헤더 액센트 좌측 바, 수치 판독값은 모노스페이스(계기판 느낌) — 실험 조건 화면과 통일
+const sectionHeadStyle = {
+  paddingLeft: 8,
+  borderLeft: '3px solid var(--accent)',
+  lineHeight: 1.2,
+}
+const readingStyle = {
+  fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
+}
+
 export default function ApprovalPage() {
   const navigate = useNavigate()
   const { session, setSuggestion, setApproval } = useSession()
@@ -177,7 +187,7 @@ export default function ApprovalPage() {
         <div className="card" style={{ flex: 1 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap' }}>
             <div style={{ paddingRight: 32 }}>
-              <h3>AI 제안 파라미터</h3>
+              <h3 style={sectionHeadStyle}>AI 제안 파라미터</h3>
               <table className="kv-table kv-table--params">
                 <thead>
                   <tr>
@@ -223,7 +233,7 @@ export default function ApprovalPage() {
 
             <div style={{ paddingLeft: 32 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                <h3>예측 결과</h3>
+                <h3 style={sectionHeadStyle}>예측 결과</h3>
                 {editing && (
                   <button className="btn btn-sm" disabled={repredictLoading} onClick={handleRepredict}>
                     {repredictLoading ? <><span className="spinner" /> 재예측 중...</> : '재예측'}
@@ -239,11 +249,11 @@ export default function ApprovalPage() {
                 <tbody>
                   <tr>
                     <td>예측 Kerf</td>
-                    <td>{displayPred.pred_kerf} μm</td>
+                    <td style={readingStyle}>{displayPred.pred_kerf} μm</td>
                   </tr>
                   <tr>
                     <td>예측 Depth</td>
-                    <td>{displayPred.pred_depth} μm</td>
+                    <td style={readingStyle}>{displayPred.pred_depth} μm</td>
                   </tr>
                   <tr>
                     <td>예측 판정</td>
@@ -255,14 +265,14 @@ export default function ApprovalPage() {
                   </tr>
                   <tr>
                     <td>신뢰도</td>
-                    <td>{(displayPred.confidence * 100).toFixed(1)}%</td>
+                    <td style={readingStyle}>{(displayPred.confidence * 100).toFixed(1)}%</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
 
-          <h3 style={{ marginTop: 24 }}>SHAP 영향도 (Depth, 상위 5개)</h3>
+          <h3 style={{ ...sectionHeadStyle, marginTop: 24 }}>SHAP 영향도 (Depth, 상위 5개)</h3>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={shapData} layout="vertical" margin={{ left: 10 }}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -298,7 +308,7 @@ export default function ApprovalPage() {
 
         {/* 우측 패널 */}
         <div className="card" style={{ flex: 1 }}>
-          <h3>AI 설명</h3>
+          <h3 style={sectionHeadStyle}>AI 설명</h3>
           <div
             style={{
               background: 'var(--bg)',

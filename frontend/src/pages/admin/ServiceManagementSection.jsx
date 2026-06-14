@@ -12,6 +12,11 @@ const SERVICES = [
   { name: 'kafka', label: 'Kafka (9092)' },
 ]
 
+// 산업용 콘솔 톤: 표 데이터 모노스페이스(계기판 느낌) — 타 화면과 통일
+const readingStyle = {
+  fontFamily: 'ui-monospace, Consolas, "Courier New", monospace',
+}
+
 export default function ServiceManagementSection() {
   const [loadingService, setLoadingService] = useState(null)
   const [results, setResults] = useState({})
@@ -32,7 +37,7 @@ export default function ServiceManagementSection() {
     <div>
       <h2>서비스 관리</h2>
       <div className="card">
-        <table className="admin-table">
+        <table className="admin-table" style={readingStyle}>
           <thead>
             <tr>
               <th style={{ width: 220 }}>서비스</th>
