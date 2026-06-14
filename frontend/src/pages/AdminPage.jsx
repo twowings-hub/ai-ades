@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import AdminGuideSection from './admin/AdminGuideSection'
 import SystemStatusSection from './admin/SystemStatusSection'
 import ServiceManagementSection from './admin/ServiceManagementSection'
 import LlmSection from './admin/LlmSection'
@@ -31,6 +32,7 @@ const tabStyle = (isActive) => ({
 })
 
 const SECTIONS = [
+  { key: 'guide', label: '사용 안내', Component: AdminGuideSection },
   { key: 'status', label: '시스템 상태', Component: SystemStatusSection },
   { key: 'services', label: '서비스 관리', Component: ServiceManagementSection },
   { key: 'llm', label: 'LLM 모델 선택', Component: LlmSection },
