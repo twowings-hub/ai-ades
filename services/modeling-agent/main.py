@@ -219,11 +219,12 @@ class PredictRequest(BaseModel):
     m1_length: float
     m2_length: float
     thickness: float
+    include_shap: bool = True  # False면 SHAP 계산을 생략(국소 What-if처럼 depth만 필요할 때 속도↑)
 
 
 @app.post("/predict")
 def predict(req: PredictRequest):
-    """단일 조건에 대한 kerf/depth/quality 예측 + SHAP + LLM 설명"""
+    """단일 조건에 대한 kerf/depth/quality 예측 + SHAP(옵션)"""
     if not all([STATE["kerf_model"], STATE["depth_model"], STATE["quality_model"]]):
         raise HTTPException(status_code=400, detail="학습된 모델이 없습니다. 먼저 /model/train을 호출하세요")
 
@@ -238,7 +239,8 @@ def predict(req: PredictRequest):
     pred_quality_score = int(STATE["quality_encoder"].inverse_transform([pred_encoded])[0])
     pred_quality = QUALITY_SCORE_TO_LABEL.get(pred_quality_score, str(pred_quality_score))
 
-    shap_values = explain_instance(STATE["depth_model"], X)
+    # SHAP는 비용이 크므로(TreeExplainer 생성+계산) 필요할 때만 계산한다
+    shap_values = explain_instance(STATE["depth_model"], X) if req.include_shap else {}
 
     return _response(
         True,

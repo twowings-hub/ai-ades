@@ -561,3 +561,16 @@
   - 프롬프트에 `[국소 What-if]` 섹션 추가 + 조정 제안 시 그 Δdepth를 직접 근거로 삼도록 지시
 - 검증: execution-agent 재빌드 후 `/doe/suggest`→설명 폴링. LLM이 SHAP 해석 + **실제 What-if 값**(예: "Speed 1000→500 시 Depth +4.2μm") 인용해 조정 방향 제시 확인. 승인 화면 "AI 설명" 패널에 그대로 반영(프론트 변경·DB 적재 없음)
 - 후속: "정확히 몇 W에서 OK"까지는 Power 스윕 곡선(B 확장)으로 보완 가능 — 백로그
+
+### 4. AI 설명 생성 지연 분석 → 품질 우선 확정 (GPU 서버 대비)
+- 증상: 실험조건 입력 후 "AI 설명"이 기존보다 오래 걸림
+- 원인 분석(측정): 지연은 What-if가 아니라 **CPU Ollama LLM 생성**이 병목. SHAP는 `/predict` 호출당 31ms(47→16ms)뿐. 설명 ready까지 47.4초(370자)
+- 1차(속도) 최적화 — 품질 무관 항목은 유지:
+  - modeling `main.py`: `/predict`에 `include_shap` 옵션 추가 → What-if는 SHAP 생략
+  - `doe_routes.py`: What-if `/predict` 호출을 `ThreadPoolExecutor`로 **병렬화**
+  - (한때) 답변 간결화 + `num_predict=256` → 47.4s→23.0s로 단축했으나, 잘림 위험·서술 축소
+- **품질 최우선으로 전환**(내일 RTX5080 16GB·64GB 서버 배포 예정이라 속도 여유):
+  - 프롬프트를 "각 항목 1~2문장, 충분히 설명 + 기대 Depth 변화 언급"으로 복원
+  - `num_predict=1024`로 상향(잘림 방지), temperature 0.3 유지(사실성). 설명/결과평가에만 적용하고 **AI 채팅은 미적용**(인자 분리: `_call_ollama/_call_provider/_call_llm`에 `num_predict` 전달)
+  - 검증: 438자 완결(잘림 없음), CPU 65.7초(GPU에서 대폭 단축 예상)
+- 결정/메모: GPU 서버에선 **모델 업그레이드(qwen2.5:14b@Q5~Q6)** 가 품질 최대 레버. 코드 수정 없이 `ollama pull` + 관리자 콘솔 전환. 절차는 메모리 `ades-gpu-llm-upgrade`에 저장(다음 세션 참조)

@@ -30,10 +30,10 @@ PROMPT_TEMPLATE = """당신은 CO2 레이저로 Glass(M1)+Film(M2) 적층 소재
 
 [참고: 변수 관계] 에너지 밀도 = Power / Speed (클수록 Depth가 커지는 경향). 즉 Power를 올리거나 Speed를 낮추면 에너지 밀도가 커집니다.
 
-전문가로서 아래를 2~4문장의 한국어로 설명하세요.
-1) 위 SHAP 상위 변수를 근거로, 현재 조건이 왜 그렇게 예측됐는지 해석.
-2) 판정이 OK이면 이 조건이 적절한 이유를, OK가 아니면 운영자가 조정 가능한 4개 파라미터(Speed/Defocus/Frequency/Power) 중 무엇을 어느 방향으로 바꾸면 OK에 가까워질지 한 가지를 구체적으로 제안. 이때 위 '국소 What-if'의 Depth 변화량을 직접 근거로 삼아 방향과 크기를 정하세요. 단, 탐색공간(Speed 200/500/1000, Defocus 0~4, Frequency 100/200, Power 2.8~59.8) 안에서만 제안하세요.
-3) 이는 모델 기반 제안이므로 실측 확인이 필요하다는 점을 한 문장으로 덧붙이세요.
+전문가로서 아래 3가지를 한국어로 명확하고 충분하게 설명하세요(각 항목 1~2문장).
+1) SHAP 상위 변수를 근거로 현재 조건이 왜 그렇게 예측됐는지 구체적으로 해석.
+2) 판정이 OK이면 이 조건이 적절한 이유를, OK가 아니면 운영자가 조정 가능한 4개 파라미터(Speed/Defocus/Frequency/Power) 중 무엇을 어느 방향으로 얼마나 바꾸면 OK에 가까워질지 한 가지를 구체적으로 제안하세요. 위 '국소 What-if'의 Depth 변화량을 근거로 방향과 크기를 정하고, 기대되는 Depth 변화도 함께 언급하세요. 단, 탐색공간(Speed 200/500/1000, Defocus 0~4, Frequency 100/200, Power 2.8~59.8) 안에서만 제안하세요.
+3) 이는 모델 기반 제안이므로 실측 확인이 필요하다는 점.
 
 반드시 한국어 한글로만 답변하고, 한자나 중국어, 영어 단어를 섞지 마세요."""
 
@@ -128,13 +128,14 @@ def _build_result_prompt(context: dict) -> str:
     )
 
 
-def _call_ollama(prompt: str) -> str:
+def _call_ollama(prompt: str, num_predict: int | None = None) -> str:
     base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-    resp = requests.post(
-        f"{base_url}/api/generate",
-        json={"model": _STATE["model"], "prompt": prompt, "stream": False},
-        timeout=120,
-    )
+    payload = {"model": _STATE["model"], "prompt": prompt, "stream": False}
+    # num_predict(출력 토큰 상한)를 주면 생성 시간을 줄인다. 설명/결과평가처럼 짧은 답변에만 적용하고
+    # 채팅은 길이 제한이 필요 없으므로 None으로 호출한다.
+    if num_predict is not None:
+        payload["options"] = {"num_predict": num_predict, "temperature": 0.3}
+    resp = requests.post(f"{base_url}/api/generate", json=payload, timeout=120)
     resp.raise_for_status()
     return resp.json()["response"].strip()
 
@@ -169,11 +170,11 @@ _HANJA_PATTERN = re.compile(r"[一-鿿，。：；！？]")
 RETRY_NOTE = "\n\n(주의: 이전 답변에 한자/중국어가 섞여 있었습니다. 한자나 중국어를 전혀 사용하지 말고 한국어 한글로만 다시 작성해주세요.)"
 
 
-def _call_provider(prompt: str, provider: str | None = None):
+def _call_provider(prompt: str, provider: str | None = None, num_predict: int | None = None):
     provider = provider or _STATE["provider"]
 
     if provider == "ollama":
-        return _call_ollama(prompt)
+        return _call_ollama(prompt, num_predict)
     if provider == "claude":
         return _call_claude(prompt)
     if provider == "openai":
@@ -181,7 +182,7 @@ def _call_provider(prompt: str, provider: str | None = None):
     return None
 
 
-def _call_llm(prompt: str, provider: str | None = None):
+def _call_llm(prompt: str, provider: str | None = None, num_predict: int | None = None):
     """
     LLM을 호출한다. provider를 지정하면 전역 설정(_STATE) 대신 해당 프로바이더를 사용한다
     (예: 채팅 전용으로 Claude를 쓰고 싶을 때).
@@ -191,9 +192,9 @@ def _call_llm(prompt: str, provider: str | None = None):
     실패 시 None을 반환한다.
     """
     try:
-        result = _call_provider(prompt, provider)
+        result = _call_provider(prompt, provider, num_predict)
         if result and _HANJA_PATTERN.search(result):
-            result = _call_provider(prompt + RETRY_NOTE, provider)
+            result = _call_provider(prompt + RETRY_NOTE, provider, num_predict)
             if result and _HANJA_PATTERN.search(result):
                 return None
         return result
@@ -213,7 +214,8 @@ def generate_explanation(context: dict):
         LLM이 생성한 한국어 설명. 실패 시 None을 반환한다
         (LLM 실패가 /doe/suggest 전체 응답을 막아서는 안 됨).
     """
-    return _call_llm(_build_prompt(context))
+    # 품질 우선: 출력 토큰을 넉넉히 둬 답변이 중간에 잘리지 않게 한다(temperature 0.3으로 사실성 유지)
+    return _call_llm(_build_prompt(context), num_predict=1024)
 
 
 def generate_result_evaluation(context: dict):
@@ -229,4 +231,4 @@ def generate_result_evaluation(context: dict):
         LLM이 생성한 한국어 평가 메모. 실패 시 None을 반환한다
         (LLM 실패가 /doe/evaluate 전체 응답을 막아서는 안 됨. 운영자가 직접 작성하면 됨).
     """
-    return _call_llm(_build_result_prompt(context))
+    return _call_llm(_build_result_prompt(context), num_predict=1024)

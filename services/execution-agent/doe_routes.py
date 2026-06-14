@@ -6,6 +6,7 @@ OK 판정 시 레시피 저장까지의 엔드포인트를 제공한다.
 """
 import os
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 from fastapi import APIRouter, BackgroundTasks, HTTPException
@@ -68,8 +69,9 @@ class DoeSuggestRequest(BaseModel):
     n_suggestions: int = 1
 
 
-def _call_predict(params: dict, m1_length: float, m2_length: float, thickness: float) -> dict:
-    """modeling-agent POST /predict 호출"""
+def _call_predict(params: dict, m1_length: float, m2_length: float, thickness: float,
+                  include_shap: bool = True) -> dict:
+    """modeling-agent POST /predict 호출 (include_shap=False면 SHAP 생략으로 빠르게)"""
     try:
         resp = requests.post(
             f"{MODELING_AGENT_URL}/predict",
@@ -81,6 +83,7 @@ def _call_predict(params: dict, m1_length: float, m2_length: float, thickness: f
                 "m1_length": m1_length,
                 "m2_length": m2_length,
                 "thickness": thickness,
+                "include_shap": include_shap,
             },
             timeout=60,
         )
@@ -118,16 +121,24 @@ def _local_sensitivity(context: dict) -> str | None:
     base_depth = context["pred_depth"]
     space = _search_space()
 
-    lines = []
-    for param in ("speed", "defocus", "frequency", "power"):
-        for val in _param_neighbors(param, base[param], space):
-            trial = {**base, param: val}
-            try:
-                pred = _call_predict(trial, m1, m2, th)
-            except Exception:
-                continue
-            delta = pred["pred_depth"] - base_depth
-            lines.append(f"- {param} {base[param]}→{val}: Depth {delta:+.1f}μm")
+    # 바꿀 후보(파라미터, 값) 목록을 모은다
+    trials = [
+        (param, val)
+        for param in ("speed", "defocus", "frequency", "power")
+        for val in _param_neighbors(param, base[param], space)
+    ]
+
+    # SHAP는 불필요(depth만 필요)하므로 생략하고, 호출들을 병렬로 처리해 지연을 줄인다
+    def _delta(item):
+        param, val = item
+        try:
+            pred = _call_predict({**base, param: val}, m1, m2, th, include_shap=False)
+        except Exception:
+            return None
+        return f"- {param} {base[param]}→{val}: Depth {pred['pred_depth'] - base_depth:+.1f}μm"
+
+    with ThreadPoolExecutor(max_workers=len(trials) or 1) as pool:
+        lines = [r for r in pool.map(_delta, trials) if r]
     return "\n".join(lines) if lines else None
 
 
