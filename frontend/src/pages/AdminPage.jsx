@@ -6,6 +6,7 @@ import RetrainSection from './admin/RetrainSection'
 import CriteriaSection from './admin/CriteriaSection'
 import UsersSection from './admin/UsersSection'
 import NotificationsSection from './admin/NotificationsSection'
+import MailServerSection from './admin/MailServerSection'
 import AuditLogsSection from './admin/AuditLogsSection'
 import DataManagementSection from './admin/DataManagementSection'
 import MaterialTypesSection from './admin/MaterialTypesSection'
@@ -38,6 +39,7 @@ const SECTIONS = [
   { key: 'material-types', label: '소재 종류 관리', Component: MaterialTypesSection },
   { key: 'users', label: '사용자 관리', Component: UsersSection },
   { key: 'notifications', label: '알림 설정', Component: NotificationsSection },
+  { key: 'mail-server', label: '메일 서버 설정', Component: MailServerSection },
   { key: 'audit', label: '감사 로그', Component: AuditLogsSection },
   { key: 'data', label: '데이터 관리', Component: DataManagementSection },
 ]

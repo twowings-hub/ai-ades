@@ -202,6 +202,14 @@ CREATE TABLE IF NOT EXISTS notification_settings (
     notify_on_ok    BOOLEAN DEFAULT TRUE,
     notify_on_failure           BOOLEAN DEFAULT TRUE,
     notify_on_model_degradation BOOLEAN DEFAULT TRUE,
+    -- 사내 메일 서버(SMTP) 설정 (Phase 4, 관리자 콘솔 '메일 서버 설정'에서 관리)
+    -- 값이 있으면 .env의 SMTP_* 보다 우선한다. 비우면 메일 발송은 건너뛴다.
+    smtp_host       VARCHAR(200),
+    smtp_port       INTEGER DEFAULT 25,
+    smtp_user       VARCHAR(200),
+    smtp_password   VARCHAR(300),
+    smtp_from       VARCHAR(200),
+    smtp_use_tls    BOOLEAN DEFAULT FALSE,
     updated_at      TIMESTAMP DEFAULT NOW()
 );
 

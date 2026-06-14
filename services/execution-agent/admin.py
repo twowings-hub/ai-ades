@@ -560,6 +560,12 @@ _NOTIFICATION_DEFAULTS = {
     "notify_on_ok": True,
     "notify_on_failure": True,
     "notify_on_model_degradation": True,
+    "smtp_host": None,
+    "smtp_port": 25,
+    "smtp_user": None,
+    "smtp_password_set": False,
+    "smtp_from": None,
+    "smtp_use_tls": False,
 }
 
 
@@ -571,7 +577,8 @@ def get_notification_settings():
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT email, slack_webhook, notify_on_ok, notify_on_failure, notify_on_model_degradation
+                SELECT email, slack_webhook, notify_on_ok, notify_on_failure, notify_on_model_degradation,
+                       smtp_host, smtp_port, smtp_user, smtp_password, smtp_from, smtp_use_tls
                 FROM notification_settings ORDER BY id LIMIT 1
                 """
             )
@@ -590,6 +597,13 @@ def get_notification_settings():
             "notify_on_ok": row[2],
             "notify_on_failure": row[3],
             "notify_on_model_degradation": row[4],
+            "smtp_host": row[5],
+            "smtp_port": row[6],
+            "smtp_user": row[7],
+            # 비밀번호는 응답에 노출하지 않고 설정 여부만 알린다 (마스킹)
+            "smtp_password_set": bool(row[8]),
+            "smtp_from": row[9],
+            "smtp_use_tls": row[10],
         },
         "알림 설정 조회 완료",
     )
@@ -601,12 +615,22 @@ class NotificationSettingsRequest(BaseModel):
     notify_on_ok: bool | None = None
     notify_on_failure: bool | None = None
     notify_on_model_degradation: bool | None = None
+    # 사내 메일 서버(SMTP) 설정 — '메일 서버 설정' 화면에서 갱신
+    smtp_host: str | None = None
+    smtp_port: int | None = None
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str | None = None
+    smtp_use_tls: bool | None = None
 
 
 @router.patch("/notifications/settings")
 def update_notification_settings(req: NotificationSettingsRequest):
     """알림 설정을 갱신한다 (행이 없으면 새로 생성)"""
     payload = req.model_dump(exclude_unset=True)
+    # SMTP 비밀번호가 빈 문자열이면 '변경 안 함'으로 간주 → 기존 값 유지 (마스킹 UI 대응)
+    if payload.get("smtp_password") == "":
+        payload.pop("smtp_password")
     if not payload:
         raise HTTPException(status_code=400, detail="변경할 값이 없습니다")
 
@@ -617,17 +641,12 @@ def update_notification_settings(req: NotificationSettingsRequest):
             row = cur.fetchone()
 
             if row is None:
-                merged = {**_NOTIFICATION_DEFAULTS, **payload}
+                # 컬럼명은 Pydantic 모델 필드(=DB 컬럼)에서만 오므로 SQL 주입 위험 없음
+                cols = list(payload.keys())
+                placeholders = ", ".join(["%s"] * len(cols))
                 cur.execute(
-                    """
-                    INSERT INTO notification_settings
-                        (email, slack_webhook, notify_on_ok, notify_on_failure, notify_on_model_degradation)
-                    VALUES (%s, %s, %s, %s, %s)
-                    """,
-                    (
-                        merged["email"], merged["slack_webhook"], merged["notify_on_ok"],
-                        merged["notify_on_failure"], merged["notify_on_model_degradation"],
-                    ),
+                    f"INSERT INTO notification_settings ({', '.join(cols)}) VALUES ({placeholders})",
+                    list(payload.values()),
                 )
             else:
                 set_clauses = [f"{key} = %s" for key in payload]
@@ -640,7 +659,9 @@ def update_notification_settings(req: NotificationSettingsRequest):
     finally:
         conn.close()
 
-    return _response(True, payload, "알림 설정이 변경되었습니다")
+    # 응답에서 비밀번호 값은 노출하지 않는다
+    safe = {k: ("***" if k == "smtp_password" else v) for k, v in payload.items()}
+    return _response(True, safe, "알림 설정이 변경되었습니다")
 
 
 @router.post("/notifications/test")
