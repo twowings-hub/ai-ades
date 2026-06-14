@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 import admin
 import approval
+import notifier
 import recipe_db
 from bayesian_opt import suggest_params
 from db import QUALITY_SCORE, get_connection, judge_quality
@@ -398,7 +399,7 @@ def _insert_experiment(suggestion: dict, req: DoeResultRequest, quality: str):
 
 
 @router.post("/result")
-def doe_result(req: DoeResultRequest):
+def doe_result(req: DoeResultRequest, background_tasks: BackgroundTasks):
     """실험 결과를 입력받아 판정하고, OK이면 레시피를 저장한다."""
     suggestion = _get_suggestion(req.suggestion_id)
     quality = judge_quality(req.actual_depth)
@@ -429,6 +430,17 @@ def doe_result(req: DoeResultRequest):
         result_message = "OK 달성! 레시피가 저장되었습니다."
     else:
         result_message = f"{quality} 판정. /doe/suggest 로 다음 조건을 요청하세요."
+
+    # 자동 알림: OK이면 'ok', 실패(미가공/과가공/NG)면 'failure' 이벤트를 비차단으로 발송한다.
+    # (실패해도 결과 저장 응답을 막지 않도록 BackgroundTasks + notifier 내부 예외격리)
+    exp_no = f"DOE-{req.suggestion_id[:8]}"
+    _event = "ok" if quality == "OK" else "failure"
+    _msg = (
+        f"[{quality}] {exp_no} (M1 {suggestion['m1_length']}mm / M2 {suggestion['m2_length']}mm / "
+        f"{suggestion['thickness']}μm) — Depth {req.actual_depth}μm, Kerf {req.actual_kerf}μm, "
+        f"{doe_attempts}차"
+    )
+    background_tasks.add_task(notifier.notify, _event, _msg, quality=quality, exp_no=exp_no)
 
     return _response(
         True,

@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 import approval
 import llm_explainer
+import notifier
 from db import get_connection
 from responses import make_response as _response
 from env_utils import update_env
@@ -666,7 +667,12 @@ def test_notifications():
         results["slack"] = "미설정"
 
     if email:
-        results["email"] = "이메일 주소는 설정되어 있으나 SMTP 연동이 구현되지 않았습니다"
+        # 사내 SMTP(.env의 SMTP_*)로 실제 테스트 메일을 발송한다.
+        results["email"] = notifier.send_email(
+            email,
+            "[AI-ADES] 알림 테스트",
+            "AI-ADES 알림 테스트 메시지입니다. (사내 SMTP 연동 확인용)",
+        )
     else:
         results["email"] = "미설정"
 

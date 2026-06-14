@@ -285,3 +285,23 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 );
 
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages (session_id);
+
+-- ------------------------------------------------------------
+-- 12. notifications: 자동 알림 이벤트 로그 (Phase 4)
+--     OK/실패 등 이벤트를 기록하는 공통 백본 — 메일 발송과 Grafana 알림판이 함께 사용한다.
+--     (폐쇄망: 기록은 DB에만, 발송은 사내망에만)
+--     event_type: 'ok' / 'failure' / 'model_degradation'
+--     channel:    'email' / 'inapp' (발송 시도한 채널)
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS notifications (
+    id           SERIAL PRIMARY KEY,
+    event_type   VARCHAR(30) NOT NULL,
+    quality      VARCHAR(20),            -- OK / 미가공 / 과가공 / NG (해당 시)
+    exp_no       VARCHAR(50),
+    message      TEXT NOT NULL,
+    email_status VARCHAR(300),           -- 메일 발송 결과 ('sent' / '미설정' / '비활성' / 실패사유)
+    created_at   TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_event_type ON notifications (event_type);
