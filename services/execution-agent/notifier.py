@@ -25,13 +25,19 @@ _EVENT_FLAG = {
 
 
 def _load_settings() -> dict:
-    """알림 설정(수신 메일/플래그)을 조회한다. 없으면 기본값(모두 on)."""
+    """알림 설정(수신 메일/플래그/SMTP 서버)을 조회한다. 없으면 기본값(모두 on)."""
     defaults = {
         "email": None,
         "slack_webhook": None,
         "notify_on_ok": True,
         "notify_on_failure": True,
         "notify_on_model_degradation": True,
+        "smtp_host": None,
+        "smtp_port": None,
+        "smtp_user": None,
+        "smtp_password": None,
+        "smtp_from": None,
+        "smtp_use_tls": None,
     }
     try:
         conn = get_connection()
@@ -40,7 +46,9 @@ def _load_settings() -> dict:
                 cur.execute(
                     """
                     SELECT email, slack_webhook, notify_on_ok,
-                           notify_on_failure, notify_on_model_degradation
+                           notify_on_failure, notify_on_model_degradation,
+                           smtp_host, smtp_port, smtp_user, smtp_password,
+                           smtp_from, smtp_use_tls
                     FROM notification_settings ORDER BY id LIMIT 1
                     """
                 )
@@ -58,38 +66,71 @@ def _load_settings() -> dict:
         "notify_on_ok": row[2],
         "notify_on_failure": row[3],
         "notify_on_model_degradation": row[4],
+        "smtp_host": row[5],
+        "smtp_port": row[6],
+        "smtp_user": row[7],
+        "smtp_password": row[8],
+        "smtp_from": row[9],
+        "smtp_use_tls": row[10],
     }
 
 
-def send_email(to_addr: str, subject: str, body: str) -> str:
+def _resolve_smtp(settings: dict) -> dict | None:
     """
-    사내 SMTP 서버로 메일을 발송한다 (.env의 SMTP_* 사용).
+    SMTP 접속 설정을 결정한다: DB(관리자 콘솔 설정)가 있으면 우선, 없으면 .env(SMTP_*) 폴백.
+    SMTP_HOST가 어디에도 없으면 None을 반환한다(메일 발송 건너뜀).
+    """
+    host = settings.get("smtp_host") or os.getenv("SMTP_HOST")
+    if not host:
+        return None
+
+    # DB에 host가 지정된 경우 DB 값을 우선, 아니면 env 값을 사용
+    from_db = bool(settings.get("smtp_host"))
+
+    def pick(db_val, env_key, default=None):
+        if from_db:
+            return db_val if db_val not in (None, "") else default
+        return os.getenv(env_key, default)
+
+    port = pick(settings.get("smtp_port"), "SMTP_PORT", "25")
+    use_tls_raw = settings.get("smtp_use_tls") if from_db else os.getenv("SMTP_USE_TLS", "false")
+    use_tls = use_tls_raw in (True, "1", "true", "True", "yes") if from_db else str(use_tls_raw).lower() in ("1", "true", "yes")
+
+    return {
+        "host": host,
+        "port": int(port or 25),
+        "user": pick(settings.get("smtp_user"), "SMTP_USER") or None,
+        "password": pick(settings.get("smtp_password"), "SMTP_PASSWORD") or None,
+        "sender": pick(settings.get("smtp_from"), "SMTP_FROM") or settings.get("smtp_user") or "ai-ades@localhost",
+        "use_tls": use_tls,
+        "timeout": int(os.getenv("SMTP_TIMEOUT", "5")),
+    }
+
+
+def send_email(to_addr: str, subject: str, body: str, settings: dict | None = None) -> str:
+    """
+    사내 SMTP 서버로 메일을 발송한다. 접속 설정은 DB(관리자 콘솔) 우선, .env 폴백.
     반환값: 'sent' | '미설정' | '실패 (사유)' — 절대 예외를 던지지 않는다.
     """
-    host = os.getenv("SMTP_HOST")
-    if not host:
+    if settings is None:
+        settings = _load_settings()
+    cfg = _resolve_smtp(settings)
+    if cfg is None:
         # 사내 SMTP가 구성되지 않음 → 조용히 건너뜀 (폐쇄망에서 정상 상황)
-        return "미설정 (SMTP_HOST 없음)"
-
-    port = int(os.getenv("SMTP_PORT", "25"))
-    user = os.getenv("SMTP_USER") or None
-    password = os.getenv("SMTP_PASSWORD") or None
-    sender = os.getenv("SMTP_FROM") or user or "ai-ades@localhost"
-    use_tls = os.getenv("SMTP_USE_TLS", "false").lower() in ("1", "true", "yes")
-    timeout = int(os.getenv("SMTP_TIMEOUT", "5"))
+        return "미설정 (SMTP 서버 없음)"
 
     msg = MIMEText(body, "plain", "utf-8")
     msg["Subject"] = str(Header(subject, "utf-8"))
-    msg["From"] = sender
+    msg["From"] = cfg["sender"]
     msg["To"] = to_addr
 
     try:
-        with smtplib.SMTP(host, port, timeout=timeout) as server:
-            if use_tls:
+        with smtplib.SMTP(cfg["host"], cfg["port"], timeout=cfg["timeout"]) as server:
+            if cfg["use_tls"]:
                 server.starttls()
-            if user and password:
-                server.login(user, password)
-            server.sendmail(sender, [to_addr], msg.as_string())
+            if cfg["user"] and cfg["password"]:
+                server.login(cfg["user"], cfg["password"])
+            server.sendmail(cfg["sender"], [to_addr], msg.as_string())
         return "sent"
     except Exception as exc:
         return f"실패 ({exc})"
@@ -127,7 +168,7 @@ def notify(event_type: str, message: str, *, quality=None, exp_no=None) -> str:
         email = settings.get("email")
         if email:
             subject = f"[AI-ADES] {_event_label(event_type)}"
-            email_status = send_email(email, subject, message)
+            email_status = send_email(email, subject, message, settings)
         else:
             email_status = "미설정 (수신 메일 없음)"
 
