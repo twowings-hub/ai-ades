@@ -531,3 +531,20 @@
 - 자동 알림 실제 동작(실험 OK/실패 → 메일+Grafana) 엔드투엔드 검증(알림 설정 토글 확인)
 - 모델 성능 저하 알림(임계값 정의 후) 추가 검토
 - 병합 브랜치 정리 및 origin push 여부 결정
+
+---
+
+## 개발플랜 백로그(RAG) 반영 + 관리자 게이트 테스트 바이패스 (2026-06-14)
+
+### 1. AI 채팅 동작 방식 정리 → 개발플랜 백로그 신설
+- 확인: AI 채팅은 LLM을 학습/파인튜닝하는 게 아니라, `system_manual.md`(없으면 `SYSTEM_GUIDE` 폴백) **전체 + 실시간 DB 요약**을 매 요청 프롬프트에 주입하는 **in-context 방식**(RAG 아님, `chat.py` 주석에 명시)
+  - `SYSTEM_MANUAL`은 모듈 로드 시 1회만 읽음(`chat.py`) + execution-agent는 소스 볼륨 마운트 없음 → 매뉴얼 수정은 `docker compose build/up -d`로 재빌드해야 반영
+- `docs/AI-ADES_개발플랜.md`: **"10. 향후 개선(백로그)"** 섹션 신설
+  - AI 채팅 매뉴얼 **RAG 전환**(매뉴얼 비대화 시 지연·컨텍스트 한계 → Qdrant로 검색·주입), Grafana 패널 구성, 승인 수정입력 탐색공간 가드, 매뉴얼 즉시반영(볼륨 마운트+재읽기) 기록
+  - (앞서) "Phase 4 실제 구현 현황(계획 대비 확장)"도 Phase 4 섹션에 추가 완료
+
+### 2. 관리자 콘솔 비밀번호 게이트 — 테스트 바이패스 모드
+- 요청: 테스트 단계에선 관리자 진입 시 **모달은 뜨되 비밀번호 검증 없이 [확인]만 누르면 입장**
+- `frontend/src/config/adminAuth.js`: `ADMIN_AUTH_ENABLED=true`로 켜고 `ADMIN_AUTH_TEST_BYPASS=true` 신규 플래그 추가(운영 전환 시 false면 실제 비번 검증)
+- `frontend/src/pages/AdminPage.jsx` `AdminGate`: 전체화면 카드 → **modal-overlay 팝업**으로 변경, "테스트 단계" 안내 배너, 바이패스 시 비번 검증 생략·세션 기억 안 함(진입 때마다 모달), [취소]는 홈 이동(useNavigate)
+- HMR 즉시 반영(재빌드 불필요)

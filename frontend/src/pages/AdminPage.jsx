@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { ADMIN_AUTH_ENABLED, ADMIN_PASSWORD } from '../config/adminAuth'
+import { useNavigate } from 'react-router-dom'
+import { ADMIN_AUTH_ENABLED, ADMIN_AUTH_TEST_BYPASS, ADMIN_PASSWORD } from '../config/adminAuth'
 import AdminGuideSection from './admin/AdminGuideSection'
 import SystemStatusSection from './admin/SystemStatusSection'
 import ServiceManagementSection from './admin/ServiceManagementSection'
@@ -48,11 +49,16 @@ const SECTIONS = [
 ]
 
 // 관리자 콘솔 접근 비밀번호 게이트
-// ADMIN_AUTH_ENABLED=false 이면(테스트 중) 비밀번호 없이 통과한다.
+// - ADMIN_AUTH_ENABLED=false → 게이트 없이 통과
+// - ADMIN_AUTH_TEST_BYPASS=true → 모달은 뜨지만 [확인]만 누르면 통과(테스트 단계, 비밀번호 검증 안 함)
 function AdminGate({ children }) {
-  const [authed, setAuthed] = useState(
-    () => !ADMIN_AUTH_ENABLED || sessionStorage.getItem('ades_admin_authed') === '1',
-  )
+  const navigate = useNavigate()
+  const [authed, setAuthed] = useState(() => {
+    if (!ADMIN_AUTH_ENABLED) return true
+    // 테스트 바이패스 중에는 진입 때마다 모달을 보여준다(세션 기억 안 함)
+    if (ADMIN_AUTH_TEST_BYPASS) return false
+    return sessionStorage.getItem('ades_admin_authed') === '1'
+  })
   const [pw, setPw] = useState('')
   const [error, setError] = useState(false)
 
@@ -60,9 +66,9 @@ function AdminGate({ children }) {
 
   const submit = (e) => {
     e.preventDefault()
-    if (pw === ADMIN_PASSWORD) {
-      // 같은 탭 세션 동안은 다시 묻지 않는다
-      sessionStorage.setItem('ades_admin_authed', '1')
+    // 테스트 단계에서는 비밀번호 검증 없이 통과시킨다
+    if (ADMIN_AUTH_TEST_BYPASS || pw === ADMIN_PASSWORD) {
+      if (!ADMIN_AUTH_TEST_BYPASS) sessionStorage.setItem('ades_admin_authed', '1')
       setAuthed(true)
     } else {
       setError(true)
@@ -70,12 +76,17 @@ function AdminGate({ children }) {
   }
 
   return (
-    <div style={{ maxWidth: 360, margin: '60px auto' }}>
-      <div className="card">
+    <div className="modal-overlay">
+      <div className="modal" style={{ maxWidth: 360 }}>
         <h2 style={{ marginBottom: 4 }}>관리자 인증</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 0 }}>
           관리자 콘솔에 접근하려면 비밀번호를 입력하세요.
         </p>
+        {ADMIN_AUTH_TEST_BYPASS && (
+          <div className="banner banner-info" style={{ marginTop: 0, marginBottom: 10, fontSize: 12 }}>
+            테스트 단계: 비밀번호 없이 [확인]을 누르면 입장합니다.
+          </div>
+        )}
         <form onSubmit={submit}>
           <input
             type="password"
@@ -90,9 +101,14 @@ function AdminGate({ children }) {
               비밀번호가 올바르지 않습니다.
             </div>
           )}
-          <button className="btn btn-primary" type="submit" style={{ marginTop: 12, width: '100%' }}>
-            확인
-          </button>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button className="btn" type="button" onClick={() => navigate('/')} style={{ flex: 1 }}>
+              취소
+            </button>
+            <button className="btn btn-primary" type="submit" style={{ flex: 1 }}>
+              확인
+            </button>
+          </div>
         </form>
       </div>
     </div>
