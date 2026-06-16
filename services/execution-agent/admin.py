@@ -5,6 +5,7 @@ AI-ADES Execution Agent — Admin Console 백엔드 (Phase 4, CLAUDE.md 11-1)
 감사 로그(audit_logs) / 서비스 관리 / 데이터 관리는 admin_data.py에 분리되어 있다.
 """
 import os
+import subprocess
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -93,12 +94,45 @@ def admin_health():
     return _response(True, {"services": services}, "헬스체크 완료")
 
 
+def _gpu_metrics():
+    """nvidia-smi로 첫 번째 NVIDIA GPU의 사용률/메모리/온도를 조회한다.
+
+    GPU가 없거나(컨테이너에 GPU 미할당) nvidia-smi가 없으면 None을 반환한다.
+    (GPU 조회 실패가 시스템 상태 화면 전체를 막아서는 안 됨)
+    """
+    try:
+        out = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu",
+                "--format=csv,noheader,nounits",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if out.returncode != 0 or not out.stdout.strip():
+            return None
+        # 멀티 GPU여도 시스템 상태 화면은 첫 번째 GPU만 표시한다
+        name, util, mem_used, mem_total, temp = [c.strip() for c in out.stdout.strip().splitlines()[0].split(",")]
+        return {
+            "name": name,
+            "util_percent": float(util),
+            "mem_used_gb": round(float(mem_used) / 1024, 2),   # MiB → GB
+            "mem_total_gb": round(float(mem_total) / 1024, 2),
+            "temp_c": float(temp),
+        }
+    except Exception:
+        return None
+
+
 @router.get("/system-metrics")
 def system_metrics():
-    """CPU/RAM/Disk + LLM 설정값 + model_metrics 최신값을 조회한다"""
+    """CPU/RAM/Disk + GPU + LLM 설정값 + model_metrics 최신값을 조회한다"""
     cpu = psutil.cpu_percent(interval=0.3)
     mem = psutil.virtual_memory()
     disk = psutil.disk_usage("/")
+    gpu = _gpu_metrics()
 
     conn = get_connection()
     try:
@@ -131,6 +165,7 @@ def system_metrics():
             "ram_total_gb": round(mem.total / 1e9, 2),
             "disk_used_gb": round(disk.used / 1e9, 2),
             "disk_total_gb": round(disk.total / 1e9, 2),
+            "gpu": gpu,  # GPU 미할당 환경에서는 None
             "llm_provider": llm_explainer._STATE["provider"],
             "llm_model": llm_explainer._STATE["model"],
             "model_metrics": model_metrics,

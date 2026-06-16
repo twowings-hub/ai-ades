@@ -130,12 +130,16 @@ def _build_result_prompt(context: dict) -> str:
 
 def _call_ollama(prompt: str, num_predict: int | None = None) -> str:
     base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+    # CPU 추론 환경에서는 설명 1건 생성에 100초 이상 걸릴 수 있어 120초로는 ReadTimeout이 난다.
+    # 설명 생성은 백그라운드 작업이라 timeout을 늘려도 /doe/suggest 응답을 막지 않으므로 넉넉히 둔다.
+    # (GPU 서버 전환 후에는 수초로 단축되므로 .env OLLAMA_TIMEOUT로 조정 가능하게 한다)
+    timeout = float(os.getenv("OLLAMA_TIMEOUT", 300))
     payload = {"model": _STATE["model"], "prompt": prompt, "stream": False}
     # num_predict(출력 토큰 상한)를 주면 생성 시간을 줄인다. 설명/결과평가처럼 짧은 답변에만 적용하고
     # 채팅은 길이 제한이 필요 없으므로 None으로 호출한다.
     if num_predict is not None:
         payload["options"] = {"num_predict": num_predict, "temperature": 0.3}
-    resp = requests.post(f"{base_url}/api/generate", json=payload, timeout=120)
+    resp = requests.post(f"{base_url}/api/generate", json=payload, timeout=timeout)
     resp.raise_for_status()
     return resp.json()["response"].strip()
 

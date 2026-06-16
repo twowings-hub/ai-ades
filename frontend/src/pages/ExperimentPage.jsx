@@ -75,7 +75,15 @@ export default function ExperimentPage() {
     let cancelled = false
     dataPrepApi.get('/data/distribution').then((res) => {
       if (cancelled) return
-      setDataRanges(res.data.data.data_ranges)
+      const ranges = res.data.data.data_ranges
+      setDataRanges(ranges)
+      // Thickness 미입력 시 학습 데이터 범위의 중앙값을 기본값으로 채운다
+      // (입력칸이 비어 있어 스피너를 누르면 0.0부터 시작하던 문제 해결)
+      const t = ranges?.thickness_um
+      if (t && t.min != null && t.max != null) {
+        const mid = Math.round(((t.min + t.max) / 2) * 10) / 10
+        setThickness((prev) => (prev === '' || prev == null ? String(mid) : prev))
+      }
     }).catch(() => {})
 
     return () => {

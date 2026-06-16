@@ -574,3 +574,25 @@
   - `num_predict=1024`로 상향(잘림 방지), temperature 0.3 유지(사실성). 설명/결과평가에만 적용하고 **AI 채팅은 미적용**(인자 분리: `_call_ollama/_call_provider/_call_llm`에 `num_predict` 전달)
   - 검증: 438자 완결(잘림 없음), CPU 65.7초(GPU에서 대폭 단축 예상)
 - 결정/메모: GPU 서버에선 **모델 업그레이드(qwen2.5:14b@Q5~Q6)** 가 품질 최대 레버. 코드 수정 없이 `ollama pull` + 관리자 콘솔 전환. 절차는 메모리 `ades-gpu-llm-upgrade`에 저장(다음 세션 참조)
+
+## nb-ai-ws(RTX5080) GPU LLM 오프로드 + Thickness 기본값 (2026-06-16)
+
+### 1. nb-ai-ws GPU LLM 오프로드 구성 (인프라 작업 — 설정은 .env라 코드 커밋 외)
+- 새 GPU PC(**nb-ai-ws**, RTX 5080 16GB)를 Tailscale(`100.94.29.111`)로 연결. 개발은 Surface 유지, **LLM 추론만 nb-ai-ws로 오프로드**(데이터/DB/모델은 Surface 로컬 단일 소스 유지 — 실험 350건 등이 로컬에만 있어 전체 마이그레이션은 보류).
+- nb-ai-ws에 Ollama를 Docker로 기동: `docker run -d --gpus=all -p 11434:11434 -v ollama:/root/.ollama --name ollama ollama/ollama`. RTX5080 패스스루 확인(`nvidia-smi`), 모델 `qwen2.5:14b-instruct-q6_K`(12GB) pull. Surface→nb-ai-ws end-to-end **43.5 tok/s · 100% GPU** 검증.
+- **AI 설명 LLM을 Claude→Ollama 전환**: 관리자 API `/admin/llm/switch`(런타임 전환 + `.env` 기록). UI에서 AI 설명 정상 생성 확인. AI 채팅(`CHAT_LLM_PROVIDER`)은 아직 Claude 유지.
+- 트러블슈팅 교훈: nb-ai-ws에서 docker 명령은 **RDP + 관리자 PowerShell** 필요(PSRemoting 세션은 `docker pull` 자격증명 에러). 상세 절차는 작업일지 `docs/nb-ai-ws_setup_log_20260616.html`, 메모리 `ades-nb-ai-ws-offload` 참조.
+
+### 2. 실험 화면 Thickness 입력 기본값 (`frontend/src/pages/ExperimentPage.jsx`)
+- 증상: Thickness가 빈 칸이라 스피너(▲)를 누르면 0.0부터 시작.
+- 데이터 범위 조회(`/data/distribution`) 시점에 Thickness가 비어 있으면 **학습 데이터 범위의 중앙값**(`(min+max)/2`, 현재 데이터 기준 137.8μm)을 기본값으로 채움. 이미 받아오던 범위라 추가 API 호출 없음.
+- 안전장치: 빈 칸(`''`)일 때만 채움(사용자 입력·세션 복원값 미덮어씀), 초기 마운트 1회만 적용.
+
+### 3. 보안: env 프로필 키 보호 (`.gitignore`)
+- `.env.surface`/`.env.nb-ai-ws`에 실제 API 키가 평문으로 있는데 무시 목록에 `.env`만 있었음 → `.env.*` 추가(`!.env.example` 유지). 추적된 적 없어 유출 없음. 깨진 `MODELING_AGENT_URL` 줄(키 누락)도 수정.
+
+### 4. (이전 세션 미커밋분 동반 커밋) GPU 사용량 패널 · 학습지표 툴팁 · Ollama 타임아웃 설정화
+- `admin.py` `_gpu_metrics()`: 로컬 `nvidia-smi`로 GPU 이름/사용률/메모리/온도 조회 → `/system-metrics`에 `gpu` 추가(GPU 없으면 None으로 화면 안 막음). `SystemStatusSection.jsx`에 GPU 행 표시.
+- `SystemStatusSection.jsx`: 학습 지표(Kerf R²/Depth R²/Quality F1·Accuracy/학습시각)에 의미 설명 **ⓘ 마우스오버 툴팁**(`METRIC_HELP`) 추가.
+- `docker-compose.yml`: execution-agent에 NVIDIA GPU `reservations` 추가(GPU 사용률 표시용, GPU 없는 호스트는 블록 제거 안내 주석).
+- `llm_explainer.py`: `_call_ollama` 타임아웃 하드코딩 120s → `.env OLLAMA_TIMEOUT`(기본 300s)으로 설정화(CPU 추론 ReadTimeout 대응).

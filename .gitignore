@@ -1,5 +1,7 @@
-# 환경변수
+# 환경변수 (실제 키 포함 — .env.example만 추적)
 .env
+.env.*
+!.env.example
 
 # Python
 __pycache__/
